@@ -7,6 +7,7 @@ namespace SchoolNewspaperBlazorApp.Data
         public NewspaperDbContext(DbContextOptions<NewspaperDbContext> options)
             : base(options) {}
         public DbSet<Article> Articles { get; set; }
+        public DbSet<User> Users => Set<User>();
         public DbSet<MediaFile> Files { get; set; }
         protected override void OnModelCreating(ModelBuilder mb)
         {
@@ -15,7 +16,7 @@ namespace SchoolNewspaperBlazorApp.Data
                 .ValueGeneratedNever();
         }
 
-        public DbSet<User> Users => Set<User>();
+        
     }
 
 }

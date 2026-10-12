@@ -11,6 +11,7 @@
         {
             <button class="btn btn-primary" @onclick="LoadArticleAsync">📋 Panel artykułów</button>
             <button class="btn btn-primary" @onclick="() => SetView(2)">➕ Dodaj artykuł</button>
+            <button class="btn btn-primary" @onclick="() => SetView(3)">➕ Dodaj Uzytkownika</button>
         }
         else
         {
@@ -27,6 +28,11 @@
     else if (view == 2)
     {
         <ArticleForm />
+    }
+
+    else if (view == 3)
+    {
+        <AddUserForm />
     }
 </div>
 

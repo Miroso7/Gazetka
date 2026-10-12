@@ -1,5 +1,16 @@
-﻿<h3>LoginPage</h3>
+﻿@page "/login"
+@using SchoolNewspaperBlazorApp.Interfaces.Service
 
+
+@inject IAuthService authService;
+
+<h3>LoginPage</h3>
+<form @onsubmit:preventDefault>
+    <input @bind="Login" class="form-control"
+    <input @bind="Password" class="form-control" />
+    <button type="submit" class="btn btn-primary">Dodaj</button>
+</form>
 @code {
-
+    public string Login { get; set; }
+    public string Password { get; set; }
 }

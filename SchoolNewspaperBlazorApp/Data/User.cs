@@ -6,6 +6,7 @@
         public required string Login { get; set; }
         public required string Password { get; set; }
         public required string Email { get; set; }
-        public DateTime PublishDate { get; set; }
+        public DateTime RegisterDate { get; set; }
+        public string AddBy { get; set; } = string.Empty;
     }
 }

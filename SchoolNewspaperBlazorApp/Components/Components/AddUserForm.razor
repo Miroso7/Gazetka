@@ -1,0 +1,36 @@
+﻿@using System.Threading.Tasks
+@using Microsoft.AspNetCore.Components
+@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IArticleService articleService
+@inject IFileService fileService
+
+<form @onsubmit="AddUserAsync" @onsubmit:preventDefault>
+    <label class="form-label">Tytuł</label>
+    <input @bind="Login" class="form-control mb-3" placeholder="Login" />
+
+    <label class="form-label">E-mail</label>
+    <input @bind="Email" class="form-control mb-4" placeholder="E-Mail" />
+
+    <label class="form-label">Treść</label>
+    <input @bind="Password" class="form-control mb-4" placeholder="Hasło" />
+
+    <button type="submit" class="btn btn-primary w-100">Dodaj</button>
+</form>
+
+@code {
+
+    public required string Login { get; set; }
+    public required string Password { get; set; }
+    public required string Email { get; set; }
+
+    [Inject]
+    public IAuthService AuthService { get; set; } = default!;
+
+    public async Task AddUserAsync()
+    {
+        await AuthService.AddUserAsync(Login, Password, Email);
+        Login = Password = Email = string.Empty;
+    }
+
+}
