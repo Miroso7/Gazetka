@@ -14,6 +14,8 @@ namespace SchoolNewspaperBlazorApp.Data
                 .Property(x => x.Id)
                 .ValueGeneratedNever();
         }
+        
+
     }
 
 }
