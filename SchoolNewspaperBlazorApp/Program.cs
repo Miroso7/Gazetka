@@ -43,7 +43,7 @@ namespace SchoolNewspaperBlazorApp
             app.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new PhysicalFileProvider
-                (@"C:\Users\Praktyka\source\repos\SchoolNewspaperBlazorApp\Images"),
+                (@"C:\Users\Uczeń2026\source\repos\SchoolNewspaperBlazorApp\Images"),
                 RequestPath = "/Images"
             });
 
