@@ -1,36 +1,81 @@
 ﻿@inherits LayoutComponentBase
 
-<nav class="navbar navbar-expand-lg bg-dark navbar-dark shadow">
-    <div class="container">
+<header class="site-header" data-enhance-nav="false">
+    <div class="container site-nav">
 
-        <a class="navbar-brand fw-bold fs-4" href="/">
-            📰 Gazetka szkolna
+        <a class="site-nav__brand" href="/" aria-label="Gazetka szkolna – strona główna">
+            <img class="site-nav__logo"
+                 src="/logo.png"
+                 alt="Gazetka szkolna"
+                 decoding="async"
+                 fetchpriority="high" />
         </a>
 
-        <div class="navbar-nav ms-4">
-            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">Strona główna</NavLink>
-            <NavLink class="nav-link" href="/aktualnosci">Aktualności</NavLink>
-            <NavLink class="nav-link" href="/wydarzenia">Wydarzenia</NavLink>
-            <NavLink class="nav-link" href="/login">Logowanie</NavLink>
-            <NavLink class="nav-link" href="/adminPanel">Admin Panel</NavLink>
+        <input type="checkbox" id="nav-toggle" class="site-nav__check" aria-label="Przełącz menu" />
+        <label for="nav-toggle" class="site-nav__burger" aria-hidden="true"><span></span></label>
+
+        <div class="site-nav__panel">
+            <div class="site-nav__panel-inner">
+
+                <nav class="site-nav__links" aria-label="Główna nawigacja">
+                    <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">Strona główna</NavLink>
+                    <NavLink class="nav-link" href="/aktualnosci">Aktualności</NavLink>
+                    <NavLink class="nav-link" href="/wydarzenia">Wydarzenia</NavLink>
+                    <NavLink class="nav-link" href="/adminPanel">Admin Panel</NavLink>
+                </nav>
+
+                <div class="site-nav__actions">
+                    <form class="site-nav__search" role="search">
+                        <input class="site-nav__search-input"
+                               type="search"
+                               placeholder="Szukaj..."
+                               aria-label="Szukaj" />
+                        <button class="site-nav__search-btn" type="submit" aria-label="Szukaj">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="11" cy="11" r="7" />
+                                <path d="M20 20l-3.5-3.5" />
+                            </svg>
+                        </button>
+                    </form>
+
+                    <NavLink class="nav-link nav-link--cta" href="/login">Logowanie</NavLink>
+                </div>
+
+            </div>
         </div>
 
-        <form class="btn btn-search" role="search">
-            <input class="form-control me-2"
-                   type="search"
-                   placeholder="Szukaj..."
-                   aria-label="Szukaj" />
-
-            <button class="btn" type="submit">
-                Szukaj
-            </button>
-        </form>
-
     </div>
-</nav>
+</header>
 
-<main class="container py-4">
+<main id="main" class="container py-4">
     @Body
 </main>
 
+<footer class="site-footer">
+    <div class="container">
+        <div class="site-footer__grid">
+            <div class="site-footer__about">
+                <span class="site-footer__brand">Gazetka szkolna</span>
+                <p>Aktualności, wydarzenia i artykuły uczniów Technikum Informatycznego.</p>
+            </div>
 
+            <nav class="site-footer__col" aria-label="Nawigacja w stopce">
+                <span class="site-footer__heading">Na skróty</span>
+                <a href="/">Strona główna</a>
+                <a href="/aktualnosci">Aktualności</a>
+                <a href="/wydarzenia">Wydarzenia</a>
+            </nav>
+
+            <nav class="site-footer__col" aria-label="Konto">
+                <span class="site-footer__heading">Dla redakcji</span>
+                <a href="/login">Logowanie</a>
+                <a href="/adminPanel">Admin Panel</a>
+            </nav>
+        </div>
+
+        <div class="site-footer__bottom">
+            <span>© @DateTime.Now.Year Technikum Informatyczne. Wszelkie prawa zastrzeżone.</span>
+        </div>
+    </div>
+</footer>

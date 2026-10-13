@@ -5,12 +5,17 @@
 <div class="add-article-form">
     <h1 class="add-article-form__title">Dodaj artykuł</h1>
 
-@if (previewImage != null)
-{
+    @if (added)
+    {
+        <div class="form-alert" role="status">Artykuł został dodany.</div>
+    }
+
+    @if (previewImage != null)
+    {
         <div class="image-preview">
             <img src="@previewImage" alt="zdjęcie" />
         </div>
-}
+    }
 
     <label class="form-label">Zdjęcie</label>
     <InputFile OnChange="ChoosePhoto" accept="image/*" class="form-control mb-3" />
@@ -34,21 +39,30 @@
     private string text = "";
     private string author = "";
     private string? previewImage;
+    private bool added;
+
+    [Parameter]
+    public EventCallback OnAdded { get; set; }
     IBrowserFile? file;
     private async Task ChoosePhoto(InputFileChangeEventArgs e)
     {
         file = e.File;
         previewImage = await fileService.GetPreviewAsync(file);
+        added = false;
     }
 
     private async Task AddArticle()
     {
         int id = 0;
-        if(file != null)
+        if (file != null)
         {
-        id = await fileService.UploadImage(file);
+            id = await fileService.UploadImage(file);
         }
-        await articleService.AddArticleAsync(title, text, author,id);
+        await articleService.AddArticleAsync(title, text, author, id);
+        title = text = author = "";
+        previewImage = null;
+        file = null;
+        added = true;
+        await OnAdded.InvokeAsync();
     }
 }
-

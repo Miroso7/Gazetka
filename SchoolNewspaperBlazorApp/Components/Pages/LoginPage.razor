@@ -1,16 +1,145 @@
 ﻿@page "/login"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 
+@inject IAuthService authService
 
-@inject IAuthService authService;
+<div class="auth">
 
-<h3>LoginPage</h3>
-<form @onsubmit:preventDefault>
-    <input @bind="Login" class="form-control"
-    <input @bind="Password" class="form-control" />
-    <button type="submit" class="btn btn-primary">Dodaj</button>
-</form>
+    <aside class="auth__aside">
+        <span class="auth__badge">Strefa redakcji</span>
+        <h2 class="auth__aside-title">Witaj z powrotem w gazetce</h2>
+        <p class="auth__aside-text">Zaloguj się, aby zarządzać treściami szkolnej gazetki.</p>
+        <ul class="auth__list">
+            <li>
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
+                Dodawanie i usuwanie artykułów
+            </li>
+            <li>
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
+                Zarządzanie użytkownikami
+            </li>
+            <li>
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
+                Podgląd statystyk gazetki
+            </li>
+        </ul>
+    </aside>
+
+    <section class="auth__panel">
+        <a class="auth__back" href="/">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+            Strona główna
+        </a>
+
+        <h1 class="auth__title">Zaloguj się</h1>
+        <p class="auth__sub">Użyj konta redakcji, aby wejść do panelu.</p>
+
+        @if (errorMessage != null)
+        {
+            <div class="auth-alert" role="alert">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
+                <span>@errorMessage</span>
+            </div>
+        }
+
+        <EditForm Model="model" OnValidSubmit="HandleSubmitAsync" class="auth-form" novalidate>
+            <DataAnnotationsValidator />
+
+            <div class="auth-field">
+                <label class="auth-field__label" for="login">Login</label>
+                <div class="auth-field__control">
+                    <svg class="ico auth-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                    <InputText @ref="loginInput" id="login" class="auth-input" @bind-Value="model.Login"
+                               autocomplete="username" placeholder="Twój login" />
+                </div>
+                <ValidationMessage For="() => model.Login" />
+            </div>
+
+            <div class="auth-field">
+                <label class="auth-field__label" for="password">Hasło</label>
+                <div class="auth-field__control">
+                    <svg class="ico auth-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                    <InputText id="password" class="auth-input" @bind-Value="model.Password"
+                               type="@(showPassword ? "text" : "password")"
+                               autocomplete="current-password" placeholder="Twoje hasło" />
+                    <button type="button" class="auth-toggle" @onclick="() => showPassword = !showPassword"
+                            aria-label="@(showPassword ? "Ukryj hasło" : "Pokaż hasło")"
+                            aria-pressed="@showPassword">
+                        @if (showPassword)
+                        {
+                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24M1 1l22 22" /></svg>
+                        }
+                        else
+                        {
+                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                        }
+                    </button>
+                </div>
+                <ValidationMessage For="() => model.Password" />
+            </div>
+
+            <button type="submit" class="btn btn-primary auth-submit" disabled="@submitting">
+                @if (submitting)
+                {
+                    <span class="spinner" aria-hidden="true"></span>
+                    <span>Logowanie...</span>
+                }
+                else
+                {
+                    <span>Zaloguj się</span>
+                }
+            </button>
+        </EditForm>
+    </section>
+</div>
+
 @code {
-    public string Login { get; set; }
-    public string Password { get; set; }
+    private readonly LoginModel model = new();
+    private InputText? loginInput;
+    private bool showPassword;
+    private bool submitting;
+    private string? errorMessage;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && loginInput?.Element is { } element)
+        {
+            try { await element.FocusAsync(); } catch (Exception) { }
+        }
+    }
+
+    private async Task HandleSubmitAsync()
+    {
+        if (submitting) return;
+
+        submitting = true;
+        errorMessage = null;
+        try
+        {
+            // TU PODŁĄCZ LOGOWANIE z IAuthService, np.:
+            // var ok = await authService.LoginAsync(model.Login, model.Password);
+            // if (!ok) { errorMessage = "Nieprawidłowy login lub hasło."; return; }
+            // Navigation.NavigateTo("/adminPanel");
+            await Task.CompletedTask;
+        }
+        catch (Exception)
+        {
+            errorMessage = "Nie udało się zalogować. Spróbuj ponownie.";
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
+
+    private sealed class LoginModel
+    {
+        [Required(ErrorMessage = "Podaj login.")]
+        public string Login { get; set; } = "";
+
+        [Required(ErrorMessage = "Podaj hasło.")]
+        public string Password { get; set; } = "";
+    }
 }

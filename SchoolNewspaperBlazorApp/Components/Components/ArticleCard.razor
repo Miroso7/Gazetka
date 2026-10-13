@@ -1,42 +1,92 @@
 ﻿@using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Interfaces.Service
+
 <div class="article-grid">
-    @foreach (var article in Articles)
+    @if (Articles.Count == 0)
     {
-        if (permissions == true)
-        {
-            <div class="article-card">
-                <div class="article-card__img-wrap">
-                    <img src="@GetImageUrl(article.FileId)" class="article-card__img" alt="@article.Title" loading="lazy">
+        <div class="empty-state">Nie ma jeszcze żadnych artykułów.</div>
+    }
+
+    @for (var i = 0; i < Articles.Count; i++)
+    {
+        var article = Articles[i];
+        var imageUrl = GetImageUrl(article.FileId);
+        var featured = !permissions && Articles.Count > 2 && i == 0;
+        var isNewest = !permissions && Articles.Count > 1 && article.Id == NewestId;
+
+        <article @key="article.Id"
+                 class="article-card @(featured ? "article-card--featured" : "") @(permissions ? "article-card--admin" : "")"
+                 style="--i:@Math.Min(i, 8)">
+
+            <div class="article-card__img-wrap">
+                @if (!string.IsNullOrEmpty(imageUrl))
+                {
+                    <img src="@imageUrl"
+                         class="article-card__img"
+                         alt="@article.Title"
+                         loading="@(i == 0 ? "eager" : "lazy")"
+                         decoding="async" />
+                }
+                else
+                {
+                    <div class="article-card__placeholder" aria-hidden="true">📰</div>
+                }
+
+                @if (isNewest)
+                {
+                    <span class="article-card__badge">Nowe</span>
+                }
+            </div>
+
+            <div class="article-card__body">
+                <div class="article-card__meta">
+                    <span class="article-card__avatar" aria-hidden="true">@Initials(article.Author)</span>
+                    <span class="article-card__author">@article.Author</span>
+                    <span class="article-card__dot" aria-hidden="true"></span>
+                    <span class="article-card__time">@ReadMinutes(article.Text) min czytania</span>
                 </div>
-                <div class="article-card__body">
-                    <h5 class="article-card__title">@article.Title</h5>
-                    <p class="article-card__text">@article.Text</p>
-                    <div class="article-card__footer">
-                        <span class="article-card__author">@article.Author</span>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveArticleByIdAsync(article.Id)">
-                            Usuń artykuł
-                        </button>
-                    </div>
+
+                <h3 class="article-card__title">
+                    @if (permissions)
+                    {
+                        @article.Title
+                    }
+                    else
+                    {
+                        <NavLink class="article-card__link" href="@($"/article/{article.Id}")">@article.Title</NavLink>
+                    }
+                </h3>
+
+                <p class="article-card__text">@Excerpt(article.Text)</p>
+
+                <div class="article-card__footer">
+                    @if (permissions)
+                    {
+                        <div class="article-card__actions">
+                            @if (confirmId == article.Id)
+                            {
+                                <span class="article-card__ask">Usunąć ten artykuł?</span>
+                                <button class="btn btn-sm btn-danger-solid" @onclick="() => RemoveArticleByIdAsync(article.Id)">Tak, usuń</button>
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => confirmId = null">Anuluj</button>
+                            }
+                            else
+                            {
+                                <a class="btn btn-sm btn-outline-primary" href="/article/@article.Id">Podgląd</a>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => confirmId = article.Id">
+                                    Usuń artykuł
+                                </button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <span class="article-card__more" aria-hidden="true">
+                            Czytaj więcej <span class="article-card__arrow">→</span>
+                        </span>
+                    }
                 </div>
             </div>
-        }
-        else
-        {
-            <NavLink class="article-card article-card--link" href="@($"/article/{article.Id}")">
-                <div class="article-card__img-wrap">
-                    <img src="@GetImageUrl(article.FileId)" class="article-card__img" alt="@article.Title" loading="lazy">
-                </div>
-                <div class="article-card__body">
-                    <h5 class="article-card__title">@article.Title</h5>
-                    <p class="article-card__text">@article.Text</p>
-                    <div class="article-card__footer">
-                        <span class="article-card__author">@article.Author</span>
-                        <span class="article-card__more">Czytaj więcej →</span>
-                    </div>
-                </div>
-            </NavLink>
-        }
+        </article>
     }
 </div>
 
@@ -49,31 +99,71 @@
     public required IArticleService articleService { get; set; }
     [Inject]
     public required IFileService fileService { get; set; }
-    Dictionary<int, string> imageUrls = new Dictionary<int, string>();
+
+    // fileId -> adres obrazka (null = artykuł bez zdjęcia); cache zapobiega powtórnym zapytaniom
+    private readonly Dictionary<int, string?> imageUrls = new();
+    private int? confirmId;
+
+    private int NewestId => Articles.Count == 0 ? -1 : Articles.Max(a => a.Id);
+
     protected override async Task OnParametersSetAsync()
     {
-        imageUrls.Clear();
-        foreach(var article in Articles)
+        foreach (var fileId in Articles.Select(a => a.FileId).Distinct())
         {
-            var fileName = await fileService.GetFileNameByIdAsync(article.FileId);
-            if(!string.IsNullOrWhiteSpace(fileName))
-            {
-                imageUrls[article.FileId] = $"/Images/{fileName}";
-            }
+            if (imageUrls.ContainsKey(fileId)) continue;
+
+            var fileName = await fileService.GetFileNameByIdAsync(fileId);
+            imageUrls[fileId] = string.IsNullOrWhiteSpace(fileName) ? null : $"/Images/{fileName}";
         }
     }
+
     private string GetImageUrl(int fileId)
     {
-        return imageUrls.TryGetValue(fileId, out var url) ? url : "";
+        return imageUrls.TryGetValue(fileId, out var url) ? url ?? "" : "";
     }
 
     public async Task RemoveArticleByIdAsync(int id)
     {
         await articleService.RemoveArticleByIdAsync(id);
         Article? article = Articles.FirstOrDefault(a => a.Id == id);
-        if(article != null)
+        if (article != null)
         {
-        Articles.Remove(article);
+            Articles.Remove(article);
         }
+        confirmId = null;
+    }
+
+    private static string Excerpt(string? text, int max = 180)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return "";
+
+        var t = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
+        if (t.Length <= max) return t;
+
+        var cut = t.LastIndexOf(' ', max);
+        if (cut < max / 2) cut = max;
+        return t[..cut].TrimEnd(',', '.', ';', ':', '-', ' ') + "…";
+    }
+
+    private static int ReadMinutes(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return 1;
+
+        int words = 0;
+        bool inWord = false;
+        foreach (var c in text)
+        {
+            if (char.IsWhiteSpace(c)) inWord = false;
+            else if (!inWord) { inWord = true; words++; }
+        }
+        return Math.Max(1, (int)Math.Ceiling(words / 200.0));
+    }
+
+    private static string Initials(string? name)
+    {
+        var parts = (name ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 0
+            ? "?"
+            : string.Concat(parts.Take(2).Select(p => char.ToUpperInvariant(p[0])));
     }
 }

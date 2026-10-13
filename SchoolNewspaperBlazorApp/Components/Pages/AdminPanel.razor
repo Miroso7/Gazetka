@@ -1,40 +1,217 @@
 ﻿@page "/adminPanel"
 @rendermode InteractiveServer
+@implements IDisposable
 @inject IArticleService articleService
+@inject IFileService fileService
 @using SchoolNewspaperBlazorApp.Components.Components
 @using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 
-<div class="main-block">
-    <div class="admin-toolbar">
+<div class="admin">
+
+    <aside class="admin-side">
+        <div class="admin-side__head">
+            <span class="admin-side__title">Panel redakcji</span>
+            <span class="admin-side__sub">Gazetka szkolna</span>
+        </div>
+        <nav class="admin-side__nav" aria-label="Sekcje panelu">
+            <button class="admin-nav__item @Active(0)" aria-current="@(view == 0 ? "page" : null)" @onclick="() => SetView(0)">
+                @Icon("grid") <span>Przegląd</span>
+            </button>
+            <button class="admin-nav__item @Active(1)" aria-current="@(view == 1 ? "page" : null)" @onclick="LoadArticleAsync">
+                @Icon("list") <span>Artykuły</span>
+                <span class="admin-nav__badge">@articleList.Count</span>
+            </button>
+            <button class="admin-nav__item @Active(2)" aria-current="@(view == 2 ? "page" : null)" @onclick="() => SetView(2)">
+                @Icon("plus") <span>Dodaj artykuł</span>
+            </button>
+            <button class="admin-nav__item @Active(3)" aria-current="@(view == 3 ? "page" : null)" @onclick="() => SetView(3)">
+                @Icon("user-plus") <span>Dodaj użytkownika</span>
+            </button>
+        </nav>
+    </aside>
+
+    <section class="admin-main">
+
+        <header class="admin-head">
+            <h1 class="admin-head__title">@ViewTitle</h1>
+            <p class="admin-head__sub">@ViewSub</p>
+        </header>
+
         @if (view == 0)
         {
-            <button class="btn btn-primary" @onclick="LoadArticleAsync">📋 Panel artykułów</button>
-            <button class="btn btn-primary" @onclick="() => SetView(2)">➕ Dodaj artykuł</button>
-            <button class="btn btn-primary" @onclick="() => SetView(3)">➕ Dodaj Uzytkownika</button>
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat__icon">@Icon("file")</span>
+                    <div><div class="stat__value">@(loading ? "–" : articleList.Count)</div><div class="stat__label">Artykułów</div></div>
+                </div>
+                <div class="stat">
+                    <span class="stat__icon">@Icon("users")</span>
+                    <div><div class="stat__value">@(loading ? "–" : Authors.Count())</div><div class="stat__label">Autorów</div></div>
+                </div>
+                <div class="stat">
+                    <span class="stat__icon">@Icon("image")</span>
+                    <div><div class="stat__value">@(loading ? "–" : articleList.Count(a => imageUrls.ContainsKey(a.FileId)))</div><div class="stat__label">Ze zdjęciem</div></div>
+                </div>
+            </div>
+
+            <div class="qa-grid">
+                <button class="qa" @onclick="LoadArticleAsync">
+                    <span class="qa__icon">@Icon("list")</span>
+                    <span class="qa__title">Panel artykułów</span>
+                    <span class="qa__text">Przeglądaj, wyszukuj i usuwaj artykuły.</span>
+                </button>
+                <button class="qa" @onclick="() => SetView(2)">
+                    <span class="qa__icon">@Icon("plus")</span>
+                    <span class="qa__title">Dodaj artykuł</span>
+                    <span class="qa__text">Napisz nowy artykuł i dodaj zdjęcie.</span>
+                </button>
+                <button class="qa" @onclick="() => SetView(3)">
+                    <span class="qa__icon">@Icon("user-plus")</span>
+                    <span class="qa__title">Dodaj użytkownika</span>
+                    <span class="qa__text">Utwórz nowego użytkownika w systemie.</span>
+                </button>
+            </div>
+
+            <div class="panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">Ostatnio dodane</h2>
+                    <button class="link-btn" @onclick="LoadArticleAsync">Zobacz wszystkie</button>
+                </div>
+                @if (loading)
+                {
+                    <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+                }
+                else if (articleList.Count == 0)
+                {
+                    <div class="empty-state">Nie ma jeszcze żadnych artykułów.</div>
+                }
+                else
+                {
+                    <ul class="recent">
+                        @foreach (var a in articleList.OrderByDescending(x => x.Id).Take(5))
+                        {
+                            <li @key="a.Id">
+                                <a href="/article/@a.Id" class="recent__title">@a.Title</a>
+                                <span class="recent__author">@a.Author</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
         }
-        else
+        else if (view == 1)
         {
-            <button class="btn btn-outline-primary" @onclick="() => SetView(0)">← Wróć</button>
+            <div class="panel">
+                <div class="a-toolbar">
+                    <div class="field">
+                        <span class="field__icon">@Icon("search")</span>
+                        <input class="field__input" type="search" placeholder="Szukaj w artykułach..."
+                               aria-label="Szukaj w artykułach"
+                               @bind="search" @bind:event="oninput" />
+                    </div>
+                    <select class="select" aria-label="Filtruj po autorze" @bind="authorFilter">
+                        <option value="">Wszyscy autorzy</option>
+                        @foreach (var author in Authors)
+                        {
+                            <option value="@author">@author</option>
+                        }
+                    </select>
+                    <select class="select" aria-label="Sortowanie" @bind="sort">
+                        <option value="newest">Najnowsze</option>
+                        <option value="oldest">Najstarsze</option>
+                        <option value="title">Tytuł A–Z</option>
+                    </select>
+                </div>
+
+                @if (loading)
+                {
+                    <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+                }
+                else
+                {
+                    var items = Filtered.ToList();
+                    if (items.Count == 0)
+                    {
+                        <div class="empty-state">
+                            @(articleList.Count == 0 ? "Nie ma jeszcze żadnych artykułów." : "Brak artykułów pasujących do filtrów.")
+                        </div>
+                    }
+                    else
+                    {
+                        <ul class="a-list">
+                            @foreach (var a in items)
+                            {
+                                <li class="a-row" @key="a.Id">
+                                    <div class="a-row__thumb">
+                                        @if (imageUrls.TryGetValue(a.FileId, out var url))
+                                        {
+                                            <img src="@url" alt="@a.Title" loading="lazy" />
+                                        }
+                                        else
+                                        {
+                                            @Icon("image")
+                                        }
+                                    </div>
+                                    <div class="a-row__main">
+                                        <h3 class="a-row__title">@a.Title</h3>
+                                        <p class="a-row__text">@a.Text</p>
+                                        <span class="a-row__author">@a.Author</span>
+                                    </div>
+                                    <div class="a-row__actions">
+                                        <a class="icon-btn" href="/article/@a.Id" target="_blank" rel="noopener"
+                                           title="Podgląd" aria-label="Podgląd artykułu @a.Title">@Icon("external")</a>
+                                        <button class="icon-btn icon-btn--danger" title="Usuń"
+                                                aria-label="Usuń artykuł @a.Title"
+                                                @onclick="() => pendingDelete = a">
+                                            @Icon("trash")
+                                        </button>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                        <div class="a-foot">Wyświetlono @items.Count z @articleList.Count</div>
+                    }
+                }
+            </div>
         }
-    </div>
+        else if (view == 2)
+        {
+            <ArticleForm OnAdded="RefreshAsync" />
+        }
+        else if (view == 3)
+        {
+            <AddUserForm />
+        }
 
-    @if (view == 1)
-    {
-        <div class="article-panel">
-            <ArticleCard Articles="articleList" permissions="true" />
-        </div>
-    }
-    else if (view == 2)
-    {
-        <ArticleForm />
-    }
-
-    else if (view == 3)
-    {
-        <AddUserForm />
-    }
+    </section>
 </div>
+
+@if (pendingDelete != null)
+{
+    <div class="confirm">
+        <div class="confirm__scrim" @onclick="CancelDelete"></div>
+        <div class="confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+            <div class="confirm__icon">@Icon("trash")</div>
+            <h2 id="confirm-title" class="confirm__title">Usunąć artykuł?</h2>
+            <p class="confirm__text">Artykuł „@pendingDelete.Title” zostanie trwale usunięty. Tej operacji nie można cofnąć.</p>
+            <div class="confirm__actions">
+                <button class="btn btn-outline-primary" @onclick="CancelDelete" disabled="@deleting">Anuluj</button>
+                <button class="btn btn-danger-solid" @onclick="ConfirmDeleteAsync" disabled="@deleting">
+                    @(deleting ? "Usuwanie..." : "Usuń")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (toast != null)
+{
+    <div class="snack @(toastError ? "snack--error" : "")" role="status" aria-live="polite">
+        @Icon(toastError ? "trash" : "check")
+        <span>@toast</span>
+    </div>
+}
 
 
 @code {
@@ -42,13 +219,179 @@
     public int view = 0;
     public List<Article> articleList = new List<Article>();
 
+    private readonly Dictionary<int, string> imageUrls = new();
+    private bool loading = true;
+    private bool deleting;
+    private Article? pendingDelete;
+
+    private string search = "";
+    private string authorFilter = "";
+    private string sort = "newest";
+
+    private string? toast;
+    private bool toastError;
+    private CancellationTokenSource? toastCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
     public void SetView(int view)
     {
         this.view = view;
     }
+
     public async Task LoadArticleAsync()
     {
-        articleList = await articleService.GetAllArticlesAsync();
+        await RefreshAsync();
         SetView(1);
     }
+
+    private async Task RefreshAsync()
+    {
+        loading = true;
+        try
+        {
+            articleList = await articleService.GetAllArticlesAsync();
+            imageUrls.Clear();
+            foreach (var fileId in articleList.Select(a => a.FileId).Distinct())
+            {
+                var fileName = await fileService.GetFileNameByIdAsync(fileId);
+                if (!string.IsNullOrWhiteSpace(fileName))
+                {
+                    imageUrls[fileId] = $"/Images/{fileName}";
+                }
+            }
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private IEnumerable<string> Authors => articleList
+        .Select(a => a.Author)
+        .Where(s => !string.IsNullOrWhiteSpace(s))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(s => s, StringComparer.CurrentCultureIgnoreCase);
+
+    private IEnumerable<Article> Filtered
+    {
+        get
+        {
+            var q = articleList.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                q = q.Where(a => Has(a.Title, search) || Has(a.Author, search) || Has(a.Text, search));
+            }
+            if (!string.IsNullOrEmpty(authorFilter))
+            {
+                q = q.Where(a => string.Equals(a.Author, authorFilter, StringComparison.OrdinalIgnoreCase));
+            }
+            return sort switch
+            {
+                "oldest" => q.OrderBy(a => a.Id),
+                "title" => q.OrderBy(a => a.Title, StringComparer.CurrentCultureIgnoreCase),
+                _ => q.OrderByDescending(a => a.Id)
+            };
+        }
+    }
+
+    private static bool Has(string? source, string query) =>
+        source?.Contains(query, StringComparison.CurrentCultureIgnoreCase) ?? false;
+
+    private void CancelDelete()
+    {
+        if (!deleting) pendingDelete = null;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (pendingDelete is null) return;
+        var article = pendingDelete;
+        deleting = true;
+        try
+        {
+            await articleService.RemoveArticleByIdAsync(article.Id);
+            articleList.Remove(article);
+            pendingDelete = null;
+            _ = ShowToastAsync("Artykuł został usunięty.");
+        }
+        catch (Exception)
+        {
+            _ = ShowToastAsync("Nie udało się usunąć artykułu.", true);
+        }
+        finally
+        {
+            deleting = false;
+        }
+    }
+
+    private async Task ShowToastAsync(string message, bool error = false)
+    {
+        toastCts?.Cancel();
+        toastCts = new CancellationTokenSource();
+        var token = toastCts.Token;
+
+        toast = message;
+        toastError = error;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await Task.Delay(3500, token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+        toast = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        toastCts?.Cancel();
+        toastCts?.Dispose();
+    }
+
+    private string Active(int v) => view == v ? "is-active" : "";
+
+    private string ViewTitle => view switch
+    {
+        1 => "Artykuły",
+        2 => "Nowy artykuł",
+        3 => "Nowy użytkownik",
+        _ => "Przegląd"
+    };
+
+    private string ViewSub => view switch
+    {
+        1 => "Wyszukuj, podglądaj i usuwaj opublikowane artykuły.",
+        2 => "Napisz artykuł i dodaj do niego zdjęcie.",
+        3 => "Utwórz konto dla nowego użytkownika.",
+        _ => "Zarządzaj artykułami i użytkownikami gazetki."
+    };
+
+    private static RenderFragment Icon(string name) => builder =>
+        builder.AddMarkupContent(0,
+            "<svg class=\"ico\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" " +
+            "stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">" + IconPaths(name) + "</svg>");
+
+    private static string IconPaths(string name) => name switch
+    {
+        "grid" => "<rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/>",
+        "list" => "<path d=\"M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01\"/>",
+        "plus" => "<path d=\"M12 5v14M5 12h14\"/>",
+        "user-plus" => "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M19 8v6M22 11h-6\"/>",
+        "users" => "<path d=\"M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75\"/>",
+        "image" => "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8.5\" cy=\"8.5\" r=\"1.5\"/><path d=\"M21 15l-5-5L5 21\"/>",
+        "file" => "<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><path d=\"M14 2v6h6M8 13h8M8 17h8\"/>",
+        "search" => "<circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-3.5-3.5\"/>",
+        "external" => "<path d=\"M14 3h7v7M10 14L21 3M21 14v7H3V3h7\"/>",
+        "trash" => "<path d=\"M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6\"/>",
+        "check" => "<path d=\"M20 6L9 17l-5-5\"/>",
+        _ => ""
+    };
 }
