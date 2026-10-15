@@ -2053,6 +2053,7 @@ main.container {
             box-shadow: 0 0 0 .25rem rgba(216, 58, 77, .16);
         }
 
+
 .auth-toggle {
     position: absolute;
     top: 50%;
@@ -2153,8 +2154,7 @@ main.container {
 
 
 /* =====================================================================
-   ArticlePage – dopisz na końcu app.css
-   (stare reguły .article-page* możesz usunąć – nie są już używane)
+   ArticlePage
    ===================================================================== */
 
 /* ---------- Pasek postępu czytania (czyste CSS, bez JS) ---------- */
@@ -2524,8 +2524,3 @@ main.container {
         margin: 0 0 1.5rem;
     }
 }
-
-
-
-
-

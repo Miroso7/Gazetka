@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject IArticleService articleService
 @inject IFileService fileService
+@inject NavigationManager Navigation
 @using SchoolNewspaperBlazorApp.Components.Components
 @using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Interfaces.Service
@@ -219,6 +220,10 @@
     public int view = 0;
     public List<Article> articleList = new List<Article>();
 
+    // parametr z adresu ustawiany przez stronę logowania (/adminPanel?zalogowano=1)
+    [SupplyParameterFromQuery(Name = "zalogowano")]
+    public string? LoggedInFlag { get; set; }
+
     private readonly Dictionary<int, string> imageUrls = new();
     private bool loading = true;
     private bool deleting;
@@ -235,6 +240,16 @@
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && LoggedInFlag == "1")
+        {
+            _ = ShowToastAsync("Zalogowano pomyślnie.");
+            // czyścimy adres, żeby po odświeżeniu strony komunikat nie wracał
+            Navigation.NavigateTo("/adminPanel", replace: true);
+        }
     }
 
     public void SetView(int view)

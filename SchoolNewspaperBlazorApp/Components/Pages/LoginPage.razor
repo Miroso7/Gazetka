@@ -4,6 +4,7 @@
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 
 @inject IAuthService authService
+@inject NavigationManager Navigation
 
 <div class="auth">
 
@@ -48,22 +49,26 @@
             <DataAnnotationsValidator />
 
             <div class="auth-field">
-                <label class="auth-field__label" for="login">Login</label>
+                <label class="auth-field__label" for="email">Adres e-mail</label>
                 <div class="auth-field__control">
-                    <svg class="ico auth-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-                    <InputText @ref="loginInput" id="login" class="auth-input" @bind-Value="model.Login"
-                               autocomplete="username" placeholder="Twój login" />
+                    <svg class="ico auth-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 5L2 7" /></svg>
+                    <InputText @ref="emailInput" id="email" class="auth-input" @bind-Value="model.Email"
+                               type="email" autocomplete="email" placeholder="twoj@email.pl" />
                 </div>
-                <ValidationMessage For="() => model.Login" />
+                <ValidationMessage For="() => model.Email" />
             </div>
 
             <div class="auth-field">
                 <label class="auth-field__label" for="password">Hasło</label>
                 <div class="auth-field__control">
                     <svg class="ico auth-field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                    <InputText id="password" class="auth-input" @bind-Value="model.Password"
-                               type="@(showPassword ? "text" : "password")"
-                               autocomplete="current-password" placeholder="Twoje hasło" />
+                    @* type="text" + maskowanie w CSS: przeglądarka nie dorysowuje własnego oka *@
+                    <InputText id="password" class="auth-input"
+                               style="@(showPassword ? null : "-webkit-text-security: disc;")"
+                               @bind-Value="model.Password"
+                               type="text"
+                               autocomplete="current-password" autocapitalize="off" spellcheck="false"
+                               placeholder="Twoje hasło" />
                     <button type="button" class="auth-toggle" @onclick="() => showPassword = !showPassword"
                             aria-label="@(showPassword ? "Ukryj hasło" : "Pokaż hasło")"
                             aria-pressed="@showPassword">
@@ -80,11 +85,11 @@
                 <ValidationMessage For="() => model.Password" />
             </div>
 
-            <button type="submit" class="btn btn-primary auth-submit" disabled="@submitting">
-                @if (submitting)
+            <button type="submit" class="btn btn-primary auth-submit" disabled="@(submitting || loggedIn)">
+                @if (submitting || loggedIn)
                 {
                     <span class="spinner" aria-hidden="true"></span>
-                    <span>Logowanie...</span>
+                    <span>@(loggedIn ? "Przekierowanie..." : "Logowanie...")</span>
                 }
                 else
                 {
@@ -97,14 +102,15 @@
 
 @code {
     private readonly LoginModel model = new();
-    private InputText? loginInput;
+    private InputText? emailInput;
     private bool showPassword;
     private bool submitting;
+    private bool loggedIn;
     private string? errorMessage;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && loginInput?.Element is { } element)
+        if (firstRender && emailInput?.Element is { } element)
         {
             try { await element.FocusAsync(); } catch (Exception) { }
         }
@@ -112,17 +118,23 @@
 
     private async Task HandleSubmitAsync()
     {
-        if (submitting) return;
+        if (submitting || loggedIn) return;
 
         submitting = true;
         errorMessage = null;
         try
         {
-            // TU PODŁĄCZ LOGOWANIE z IAuthService, np.:
-            // var ok = await authService.LoginAsync(model.Login, model.Password);
-            // if (!ok) { errorMessage = "Nieprawidłowy login lub hasło."; return; }
-            // Navigation.NavigateTo("/adminPanel");
-            await Task.CompletedTask;
+            var ok = await authService.LoginAsync(model.Email, model.Password);
+            if (!ok)
+            {
+                errorMessage = "Nieprawidłowy adres e-mail lub hasło.";
+                model.Password = "";
+                return;
+            }
+
+            loggedIn = true;
+            // komunikat „Zalogowano pomyślnie" pokaże panel admina
+            Navigation.NavigateTo("/adminPanel?zalogowano=1");
         }
         catch (Exception)
         {
@@ -136,8 +148,9 @@
 
     private sealed class LoginModel
     {
-        [Required(ErrorMessage = "Podaj login.")]
-        public string Login { get; set; } = "";
+        [Required(ErrorMessage = "Podaj adres e-mail.")]
+        [EmailAddress(ErrorMessage = "Podaj poprawny adres e-mail.")]
+        public string Email { get; set; } = "";
 
         [Required(ErrorMessage = "Podaj hasło.")]
         public string Password { get; set; } = "";
