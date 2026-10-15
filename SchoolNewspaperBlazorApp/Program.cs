@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -7,6 +9,7 @@ using SchoolNewspaperBlazorApp.Interfaces.Repository;
 using SchoolNewspaperBlazorApp.Interfaces.Service;
 using SchoolNewspaperBlazorApp.Repository;
 using SchoolNewspaperBlazorApp.Service;
+using System.Security.Claims;
 
 namespace SchoolNewspaperBlazorApp
 {
@@ -18,7 +21,7 @@ namespace SchoolNewspaperBlazorApp
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
             //sql connect
-            builder.Services.AddDbContext<NewspaperDbContext>(options =>
+            builder.Services.AddDbContextFactory<NewspaperDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("NewspaperConnectionString")));
 
             //Repositry
@@ -33,15 +36,32 @@ namespace SchoolNewspaperBlazorApp
             builder.Services.AddScoped<IFileService, FileService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
 
+            builder.Services.AddAuthentication(
+                CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie(options =>
+                {
+                    options.LoginPath = "/login";
+                    options.Cookie.Name = "SchoolNewspaper.Auth";
+                    options.Cookie.HttpOnly = true;
+                    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                    options.Cookie.SameSite = SameSiteMode.Lax;
+                    options.ExpireTimeSpan = TimeSpan.FromHours(1);
+                    options.SlidingExpiration = true;
+                });
+            builder.Services.AddAuthorization();
+            builder.Services.AddCascadingAuthenticationState();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Error");
-               
+
                 app.UseHsts();
             }
+
+            app.UseHttpsRedirection();
 
             app.UseStaticFiles();
             app.UseStaticFiles(new StaticFileOptions
@@ -51,10 +71,47 @@ namespace SchoolNewspaperBlazorApp
                 RequestPath = "/Images"
             });
 
-            app.UseHttpsRedirection();
-
-            app.UseStaticFiles();
+            // Uwierzytelnianie musi być przed UseAntiforgery i endpointami,
+            // inaczej serwer nie odczyta cookie i użytkownik zawsze będzie "niezalogowany".
+            app.UseAuthentication();
+            app.UseAuthorization();
             app.UseAntiforgery();
+
+            app.MapPost("/auth/login", async (
+                HttpContext context,
+                IAuthService authService) =>
+            {
+                var form = await context.Request.ReadFormAsync();
+                string email = form["Email"].ToString().Trim();
+                string password = form["Password"].ToString();
+
+                bool success = await authService.LoginAsync(email, password);
+                if (!success)
+                {
+                    return Results.Redirect("/login?error=1");
+                }
+
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, email)
+                };
+                var identity = new ClaimsIdentity(
+                    claims,
+                    CookieAuthenticationDefaults.AuthenticationScheme);
+                var principal = new ClaimsPrincipal(identity);
+
+                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                    principal);
+
+                // parametr wyświetla w panelu komunikat „Zalogowano pomyślnie"
+                return Results.Redirect("/adminPanel?zalogowano=1");
+            });
+
+            app.MapPost("/auth/logout", async (HttpContext context) =>
+            {
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return Results.Redirect("/login");
+            });
 
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();

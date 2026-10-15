@@ -6,44 +6,52 @@ namespace SchoolNewspaperBlazorApp.Repository
 {
     public class ArticleRepository : IArticleRepository
     {
-        private readonly NewspaperDbContext _context;
-        public ArticleRepository(NewspaperDbContext context)
+        private readonly IDbContextFactory<NewspaperDbContext> _contextFactory;
+
+        public ArticleRepository(IDbContextFactory<NewspaperDbContext> contextFactory)
         {
-            _context = context;
+            _contextFactory = contextFactory;
         }
 
         public async Task AddArticleAsync(Article article)
         {
-            await _context.Articles.AddAsync(article);
-            await _context.SaveChangesAsync();
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            await context.Articles.AddAsync(article);
+            await context.SaveChangesAsync();
         }
+
         public async Task<List<Article>> GetAllArticlesAsync()
         {
-            return await _context.Articles.ToListAsync();
-           
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.Articles.ToListAsync();
         }
+
         public async Task<Article> GetArticleByIdAsync(int id)
         {
-            var article = await _context.Articles.FirstOrDefaultAsync(a => a.Id == id);
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var article = await context.Articles.FirstOrDefaultAsync(a => a.Id == id);
             if (article == null)
             {
                 throw new Exception($"Article with ID {id} not found.");
             }
             return article;
         }
+
         public async Task RemoveArticleByIdAsync(int id)
         {
-            var article = await _context.Articles.FirstOrDefaultAsync(a => a.Id == id);
-            if (article == null) {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var article = await context.Articles.FirstOrDefaultAsync(a => a.Id == id);
+            if (article == null)
+            {
                 throw new Exception($"Article with ID {id} not found.");
             }
-            else
-            {
-                _context.Articles.Remove(article);
-                await _context.SaveChangesAsync();
-            }
-                
 
+            context.Articles.Remove(article);
+            await context.SaveChangesAsync();
         }
     }
 }

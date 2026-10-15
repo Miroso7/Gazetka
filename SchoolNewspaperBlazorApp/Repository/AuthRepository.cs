@@ -6,31 +6,37 @@ namespace SchoolNewspaperBlazorApp.Repository
 {
     public class AuthRepository : IAuthRepository
     {
-        private readonly NewspaperDbContext _context;
+        private readonly IDbContextFactory<NewspaperDbContext> _contextFactory;
 
-        public AuthRepository(NewspaperDbContext context)
+        public AuthRepository(IDbContextFactory<NewspaperDbContext> contextFactory)
         {
-            _context = context;
+            _contextFactory = contextFactory;
         }
 
         public async Task AddUserAsync(User user)
         {
-            await _context.Users.AddAsync(user);
-            await _context.SaveChangesAsync();
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            await context.Users.AddAsync(user);
+            await context.SaveChangesAsync();
         }
 
         // Zwraca null, gdy nie ma użytkownika o takim adresie e-mail.
         public async Task<User?> GetUserByEmailAsync(string email)
         {
-            return await _context.Users
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
 
         public async Task UpdateUserAsync(User user)
         {
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            context.Users.Update(user);
+            await context.SaveChangesAsync();
         }
     }
 }

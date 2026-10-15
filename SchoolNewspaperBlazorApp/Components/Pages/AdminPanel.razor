@@ -4,10 +4,23 @@
 @inject IArticleService articleService
 @inject IFileService fileService
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthState
+@using Microsoft.AspNetCore.Components.Authorization
 @using SchoolNewspaperBlazorApp.Components.Components
 @using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 
+@if (!authorized)
+{
+    @* sprawdzanie sesji (localStorage jest dostępny dopiero po prerenderze) *@
+    <div class="admin">
+        <div class="panel" style="grid-column: 1 / -1;">
+            <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+        </div>
+    </div>
+}
+else
+{
 <div class="admin">
 
     <aside class="admin-side">
@@ -29,6 +42,11 @@
             <button class="admin-nav__item @Active(3)" aria-current="@(view == 3 ? "page" : null)" @onclick="() => SetView(3)">
                 @Icon("user-plus") <span>Dodaj użytkownika</span>
             </button>
+            <form method="post" action="/auth/logout" style="display: contents;">
+                <button type="submit" class="admin-nav__item">
+                    @Icon("logout") <span>Wyloguj</span>
+                </button>
+            </form>
         </nav>
     </aside>
 
@@ -187,6 +205,7 @@
 
     </section>
 </div>
+}
 
 @if (pendingDelete != null)
 {
@@ -237,14 +256,25 @@
     private bool toastError;
     private CancellationTokenSource? toastCts;
 
+    private bool authorized;
+
     protected override async Task OnInitializedAsync()
     {
+        // logowanie obsługuje cookie ustawione przez /auth/login (Program.cs)
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated != true)
+        {
+            Navigation.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        authorized = true;
         await RefreshAsync();
     }
 
     protected override void OnAfterRender(bool firstRender)
     {
-        if (firstRender && LoggedInFlag == "1")
+        if (firstRender && authorized && LoggedInFlag == "1")
         {
             _ = ShowToastAsync("Zalogowano pomyślnie.");
             // czyścimy adres, żeby po odświeżeniu strony komunikat nie wracał
@@ -407,6 +437,7 @@
         "external" => "<path d=\"M14 3h7v7M10 14L21 3M21 14v7H3V3h7\"/>",
         "trash" => "<path d=\"M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6\"/>",
         "check" => "<path d=\"M20 6L9 17l-5-5\"/>",
+        "logout" => "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9\"/>",
         _ => ""
     };
 }
