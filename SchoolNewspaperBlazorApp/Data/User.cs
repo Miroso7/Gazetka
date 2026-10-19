@@ -8,5 +8,6 @@
         public required string Email { get; set; }
         public DateTime RegisterDate { get; set; }
         public string AddBy { get; set; } = string.Empty;
+        public ICollection<UserPermission> UserPermission { get; set; } = new List<UserPermission>();
     }
 }

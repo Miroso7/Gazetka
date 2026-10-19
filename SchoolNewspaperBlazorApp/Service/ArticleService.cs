@@ -13,7 +13,7 @@ namespace SchoolNewspaperBlazorApp.Service
         {
             _articleRepository = articleRepository;
         }
-        public async Task AddArticleAsync(string title, string text, string author,int fileId)
+        public async Task AddArticleAsync(string title, string text, string author, int fileId)
         {
             var article = new Article
             {
@@ -38,11 +38,29 @@ namespace SchoolNewspaperBlazorApp.Service
             }
             return article;
         }
+        public async Task UpdateArticleAsync(int id, string title, string text, string author, int fileId)
+        {
+            if (id <= 0)
+            {
+                throw new ArgumentException("Nieprawidłowe ID artykułu.", nameof(id));
+            }
+
+            // data publikacji zostaje bez zmian (repozytorium aktualizuje tylko pola poniżej)
+            var article = new Article
+            {
+                Id = id,
+                Title = title,
+                Text = text,
+                Author = author,
+                FileId = fileId
+            };
+            await _articleRepository.UpdateArticleAsync(article);
+        }
         public async Task RemoveArticleByIdAsync(int id)
         {
-            if(id > 0)
+            if (id > 0)
             {
-                 await _articleRepository.RemoveArticleByIdAsync(id);
+                await _articleRepository.RemoveArticleByIdAsync(id);
             }
         }
     }

@@ -40,6 +40,25 @@ namespace SchoolNewspaperBlazorApp.Repository
             return article;
         }
 
+        public async Task UpdateArticleAsync(Article article)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var existing = await context.Articles.FirstOrDefaultAsync(a => a.Id == article.Id);
+            if (existing == null)
+            {
+                throw new Exception($"Article with ID {article.Id} not found.");
+            }
+
+            // aktualizujemy tylko edytowalne pola (data publikacji zostaje)
+            existing.Title = article.Title;
+            existing.Text = article.Text;
+            existing.Author = article.Author;
+            existing.FileId = article.FileId;
+
+            await context.SaveChangesAsync();
+        }
+
         public async Task RemoveArticleByIdAsync(int id)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();

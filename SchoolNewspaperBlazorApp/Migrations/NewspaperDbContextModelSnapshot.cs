@@ -71,6 +71,22 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.ToTable("Files");
                 });
 
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Permissions", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("PermissionName")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Permissions");
+                });
+
             modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.User", b =>
                 {
                     b.Property<int>("Id")
@@ -101,6 +117,50 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.UserPermission", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PermissionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("UserId", "PermissionId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.ToTable("UserPermissions");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.UserPermission", b =>
+                {
+                    b.HasOne("SchoolNewspaperBlazorApp.Data.Permissions", "Permission")
+                        .WithMany("Permission")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SchoolNewspaperBlazorApp.Data.User", "User")
+                        .WithMany("UserPermission")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Permissions", b =>
+                {
+                    b.Navigation("Permission");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.User", b =>
+                {
+                    b.Navigation("UserPermission");
                 });
 #pragma warning restore 612, 618
         }

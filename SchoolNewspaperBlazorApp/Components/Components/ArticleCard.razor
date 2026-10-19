@@ -72,6 +72,12 @@
                             else
                             {
                                 <a class="btn btn-sm btn-outline-primary" href="/article/@article.Id">Podgląd</a>
+                                @if (OnEdit.HasDelegate)
+                                {
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => OnEdit.InvokeAsync(article)">
+                                        Edytuj
+                                    </button>
+                                }
                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => confirmId = article.Id">
                                     Usuń artykuł
                                 </button>
@@ -95,12 +101,18 @@
     public List<Article> Articles { get; set; } = new();
     [Parameter]
     public bool permissions { get; set; }
+
+    // opcjonalne: gdy rodzic poda OnEdit, w trybie permissions pojawia się przycisk „Edytuj"
+
+    [Parameter]
+    public EventCallback<Article> OnEdit { get; set; }
     [Inject]
     public required IArticleService articleService { get; set; }
     [Inject]
     public required IFileService fileService { get; set; }
 
     // fileId -> adres obrazka (null = artykuł bez zdjęcia); cache zapobiega powtórnym zapytaniom
+
     private readonly Dictionary<int, string?> imageUrls = new();
     private int? confirmId;
 

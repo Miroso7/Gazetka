@@ -21,190 +21,196 @@
 }
 else
 {
-<div class="admin">
+    <div class="admin">
 
-    <aside class="admin-side">
-        <div class="admin-side__head">
-            <span class="admin-side__title">Panel redakcji</span>
-            <span class="admin-side__sub">Gazetka szkolna</span>
-        </div>
-        <nav class="admin-side__nav" aria-label="Sekcje panelu">
-            <button class="admin-nav__item @Active(0)" aria-current="@(view == 0 ? "page" : null)" @onclick="() => SetView(0)">
-                @Icon("grid") <span>Przegląd</span>
-            </button>
-            <button class="admin-nav__item @Active(1)" aria-current="@(view == 1 ? "page" : null)" @onclick="LoadArticleAsync">
-                @Icon("list") <span>Artykuły</span>
-                <span class="admin-nav__badge">@articleList.Count</span>
-            </button>
-            <button class="admin-nav__item @Active(2)" aria-current="@(view == 2 ? "page" : null)" @onclick="() => SetView(2)">
-                @Icon("plus") <span>Dodaj artykuł</span>
-            </button>
-            <button class="admin-nav__item @Active(3)" aria-current="@(view == 3 ? "page" : null)" @onclick="() => SetView(3)">
-                @Icon("user-plus") <span>Dodaj użytkownika</span>
-            </button>
-            <form method="post" action="/auth/logout" style="display: contents;">
-                <button type="submit" class="admin-nav__item">
-                    @Icon("logout") <span>Wyloguj</span>
-                </button>
-            </form>
-        </nav>
-    </aside>
-
-    <section class="admin-main">
-
-        <header class="admin-head">
-            <h1 class="admin-head__title">@ViewTitle</h1>
-            <p class="admin-head__sub">@ViewSub</p>
-        </header>
-
-        @if (view == 0)
-        {
-            <div class="stats">
-                <div class="stat">
-                    <span class="stat__icon">@Icon("file")</span>
-                    <div><div class="stat__value">@(loading ? "–" : articleList.Count)</div><div class="stat__label">Artykułów</div></div>
-                </div>
-                <div class="stat">
-                    <span class="stat__icon">@Icon("users")</span>
-                    <div><div class="stat__value">@(loading ? "–" : Authors.Count())</div><div class="stat__label">Autorów</div></div>
-                </div>
-                <div class="stat">
-                    <span class="stat__icon">@Icon("image")</span>
-                    <div><div class="stat__value">@(loading ? "–" : articleList.Count(a => imageUrls.ContainsKey(a.FileId)))</div><div class="stat__label">Ze zdjęciem</div></div>
-                </div>
+        <aside class="admin-side">
+            <div class="admin-side__head">
+                <span class="admin-side__title">Panel redakcji</span>
+                <span class="admin-side__sub">Gazetka szkolna</span>
             </div>
+            <nav class="admin-side__nav" aria-label="Sekcje panelu">
+                <button class="admin-nav__item @Active(0)" aria-current="@(view == 0 ? "page" : null)" @onclick="() => SetView(0)">
+                    @Icon("grid") <span>Przegląd</span>
+                </button>
+                <button class="admin-nav__item @Active(1)" aria-current="@(view == 1 ? "page" : null)" @onclick="LoadArticleAsync">
+                    @Icon("list") <span>Artykuły</span>
+                    <span class="admin-nav__badge">@articleList.Count</span>
+                </button>
+                <button class="admin-nav__item @Active(2)" aria-current="@(view == 2 ? "page" : null)" @onclick="OpenAdd">
+                    @Icon("plus") <span>Dodaj artykuł</span>
+                </button>
+                <button class="admin-nav__item @Active(3)" aria-current="@(view == 3 ? "page" : null)" @onclick="() => SetView(3)">
+                    @Icon("user-plus") <span>Dodaj użytkownika</span>
+                </button>
+                <form method="post" action="/auth/logout" style="display: contents;">
+                    <button type="submit" class="admin-nav__item">
+                        @Icon("logout") <span>Wyloguj</span>
+                    </button>
+                </form>
+            </nav>
+        </aside>
 
-            <div class="qa-grid">
-                <button class="qa" @onclick="LoadArticleAsync">
-                    <span class="qa__icon">@Icon("list")</span>
-                    <span class="qa__title">Panel artykułów</span>
-                    <span class="qa__text">Przeglądaj, wyszukuj i usuwaj artykuły.</span>
-                </button>
-                <button class="qa" @onclick="() => SetView(2)">
-                    <span class="qa__icon">@Icon("plus")</span>
-                    <span class="qa__title">Dodaj artykuł</span>
-                    <span class="qa__text">Napisz nowy artykuł i dodaj zdjęcie.</span>
-                </button>
-                <button class="qa" @onclick="() => SetView(3)">
-                    <span class="qa__icon">@Icon("user-plus")</span>
-                    <span class="qa__title">Dodaj użytkownika</span>
-                    <span class="qa__text">Utwórz nowego użytkownika w systemie.</span>
-                </button>
-            </div>
+        <section class="admin-main">
 
-            <div class="panel">
-                <div class="panel__head">
-                    <h2 class="panel__title">Ostatnio dodane</h2>
-                    <button class="link-btn" @onclick="LoadArticleAsync">Zobacz wszystkie</button>
-                </div>
-                @if (loading)
-                {
-                    <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
-                }
-                else if (articleList.Count == 0)
-                {
-                    <div class="empty-state">Nie ma jeszcze żadnych artykułów.</div>
-                }
-                else
-                {
-                    <ul class="recent">
-                        @foreach (var a in articleList.OrderByDescending(x => x.Id).Take(5))
-                        {
-                            <li @key="a.Id">
-                                <a href="/article/@a.Id" class="recent__title">@a.Title</a>
-                                <span class="recent__author">@a.Author</span>
-                            </li>
-                        }
-                    </ul>
-                }
-            </div>
-        }
-        else if (view == 1)
-        {
-            <div class="panel">
-                <div class="a-toolbar">
-                    <div class="field">
-                        <span class="field__icon">@Icon("search")</span>
-                        <input class="field__input" type="search" placeholder="Szukaj w artykułach..."
-                               aria-label="Szukaj w artykułach"
-                               @bind="search" @bind:event="oninput" />
+            <header class="admin-head">
+                <h1 class="admin-head__title">@ViewTitle</h1>
+                <p class="admin-head__sub">@ViewSub</p>
+            </header>
+
+            @if (view == 0)
+            {
+                <div class="stats">
+                    <div class="stat">
+                        <span class="stat__icon">@Icon("file")</span>
+                        <div><div class="stat__value">@(loading ? "–" : articleList.Count)</div><div class="stat__label">Artykułów</div></div>
                     </div>
-                    <select class="select" aria-label="Filtruj po autorze" @bind="authorFilter">
-                        <option value="">Wszyscy autorzy</option>
-                        @foreach (var author in Authors)
-                        {
-                            <option value="@author">@author</option>
-                        }
-                    </select>
-                    <select class="select" aria-label="Sortowanie" @bind="sort">
-                        <option value="newest">Najnowsze</option>
-                        <option value="oldest">Najstarsze</option>
-                        <option value="title">Tytuł A–Z</option>
-                    </select>
+                    <div class="stat">
+                        <span class="stat__icon">@Icon("users")</span>
+                        <div><div class="stat__value">@(loading ? "–" : Authors.Count())</div><div class="stat__label">Autorów</div></div>
+                    </div>
+                    <div class="stat">
+                        <span class="stat__icon">@Icon("image")</span>
+                        <div><div class="stat__value">@(loading ? "–" : articleList.Count(a => imageUrls.ContainsKey(a.FileId)))</div><div class="stat__label">Ze zdjęciem</div></div>
+                    </div>
                 </div>
 
-                @if (loading)
-                {
-                    <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
-                }
-                else
-                {
-                    var items = Filtered.ToList();
-                    if (items.Count == 0)
+                <div class="qa-grid">
+                    <button class="qa" @onclick="LoadArticleAsync">
+                        <span class="qa__icon">@Icon("list")</span>
+                        <span class="qa__title">Panel artykułów</span>
+                        <span class="qa__text">Przeglądaj, wyszukuj, edytuj i usuwaj artykuły.</span>
+                    </button>
+                    <button class="qa" @onclick="OpenAdd">
+                        <span class="qa__icon">@Icon("plus")</span>
+                        <span class="qa__title">Dodaj artykuł</span>
+                        <span class="qa__text">Napisz nowy artykuł i dodaj zdjęcie.</span>
+                    </button>
+                    <button class="qa" @onclick="() => SetView(3)">
+                        <span class="qa__icon">@Icon("user-plus")</span>
+                        <span class="qa__title">Dodaj użytkownika</span>
+                        <span class="qa__text">Utwórz nowego użytkownika w systemie.</span>
+                    </button>
+                </div>
+
+                <div class="panel">
+                    <div class="panel__head">
+                        <h2 class="panel__title">Ostatnio dodane</h2>
+                        <button class="link-btn" @onclick="LoadArticleAsync">Zobacz wszystkie</button>
+                    </div>
+                    @if (loading)
                     {
-                        <div class="empty-state">
-                            @(articleList.Count == 0 ? "Nie ma jeszcze żadnych artykułów." : "Brak artykułów pasujących do filtrów.")
-                        </div>
+                        <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+                    }
+                    else if (articleList.Count == 0)
+                    {
+                        <div class="empty-state">Nie ma jeszcze żadnych artykułów.</div>
                     }
                     else
                     {
-                        <ul class="a-list">
-                            @foreach (var a in items)
+                        <ul class="recent">
+                            @foreach (var a in articleList.OrderByDescending(x => x.Id).Take(5))
                             {
-                                <li class="a-row" @key="a.Id">
-                                    <div class="a-row__thumb">
-                                        @if (imageUrls.TryGetValue(a.FileId, out var url))
-                                        {
-                                            <img src="@url" alt="@a.Title" loading="lazy" />
-                                        }
-                                        else
-                                        {
-                                            @Icon("image")
-                                        }
-                                    </div>
-                                    <div class="a-row__main">
-                                        <h3 class="a-row__title">@a.Title</h3>
-                                        <p class="a-row__text">@a.Text</p>
-                                        <span class="a-row__author">@a.Author</span>
-                                    </div>
-                                    <div class="a-row__actions">
-                                        <a class="icon-btn" href="/article/@a.Id" target="_blank" rel="noopener"
-                                           title="Podgląd" aria-label="Podgląd artykułu @a.Title">@Icon("external")</a>
-                                        <button class="icon-btn icon-btn--danger" title="Usuń"
-                                                aria-label="Usuń artykuł @a.Title"
-                                                @onclick="() => pendingDelete = a">
-                                            @Icon("trash")
-                                        </button>
-                                    </div>
+                                <li @key="a.Id">
+                                    <a href="/article/@a.Id" class="recent__title">@a.Title</a>
+                                    <span class="recent__author">@a.Author</span>
                                 </li>
                             }
                         </ul>
-                        <div class="a-foot">Wyświetlono @items.Count z @articleList.Count</div>
                     }
-                }
-            </div>
-        }
-        else if (view == 2)
-        {
-            <ArticleForm OnAdded="RefreshAsync" />
-        }
-        else if (view == 3)
-        {
-            <AddUserForm />
-        }
+                </div>
+            }
+            else if (view == 1)
+            {
+                <div class="panel">
+                    <div class="a-toolbar">
+                        <div class="field">
+                            <span class="field__icon">@Icon("search")</span>
+                            <input class="field__input" type="search" placeholder="Szukaj w artykułach..."
+                                   aria-label="Szukaj w artykułach"
+                                   @bind="search" @bind:event="oninput" />
+                        </div>
+                        <select class="select" aria-label="Filtruj po autorze" @bind="authorFilter">
+                            <option value="">Wszyscy autorzy</option>
+                            @foreach (var author in Authors)
+                            {
+                                <option value="@author">@author</option>
+                            }
+                        </select>
+                        <select class="select" aria-label="Sortowanie" @bind="sort">
+                            <option value="newest">Najnowsze</option>
+                            <option value="oldest">Najstarsze</option>
+                            <option value="title">Tytuł A–Z</option>
+                        </select>
+                    </div>
 
-    </section>
-</div>
+                    @if (loading)
+                    {
+                        <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+                    }
+                    else
+                    {
+                        var items = Filtered.ToList();
+                        if (items.Count == 0)
+                        {
+                            <div class="empty-state">
+                                @(articleList.Count == 0 ? "Nie ma jeszcze żadnych artykułów." : "Brak artykułów pasujących do filtrów.")
+                            </div>
+                        }
+                        else
+                        {
+                            <ul class="a-list">
+                                @foreach (var a in items)
+                                {
+                                    <li class="a-row" @key="a.Id">
+                                        <div class="a-row__thumb">
+                                            @if (imageUrls.TryGetValue(a.FileId, out var url))
+                                            {
+                                                <img src="@url" alt="@a.Title" loading="lazy" />
+                                            }
+                                            else
+                                            {
+                                                @Icon("image")
+                                            }
+                                        </div>
+                                        <div class="a-row__main">
+                                            <h3 class="a-row__title">@a.Title</h3>
+                                            <p class="a-row__text">@a.Text</p>
+                                            <span class="a-row__author">@a.Author</span>
+                                        </div>
+                                        <div class="a-row__actions">
+                                            <a class="icon-btn" href="/article/@a.Id" target="_blank" rel="noopener"
+                                               title="Podgląd" aria-label="Podgląd artykułu @a.Title">@Icon("external")</a>
+                                            <button class="icon-btn" title="Edytuj"
+                                                    aria-label="Edytuj artykuł @a.Title"
+                                                    @onclick="() => StartEdit(a)">
+                                                @Icon("edit")
+                                            </button>
+                                            <button class="icon-btn icon-btn--danger" title="Usuń"
+                                                    aria-label="Usuń artykuł @a.Title"
+                                                    @onclick="() => pendingDelete = a">
+                                                @Icon("trash")
+                                            </button>
+                                        </div>
+                                    </li>
+                                }
+                            </ul>
+                            <div class="a-foot">Wyświetlono @items.Count z @articleList.Count</div>
+                        }
+                    }
+                </div>
+            }
+            else if (view == 2)
+            {
+                <ArticleForm @key="(editingArticle?.Id ?? 0)" ArticleToEdit="editingArticle"
+                             OnAdded="RefreshAsync" OnEdited="FinishEditAsync" OnCancelled="CancelEdit" />
+            }
+            else if (view == 3)
+            {
+                <AddUserForm />
+            }
+
+        </section>
+    </div>
 }
 
 @if (pendingDelete != null)
@@ -247,6 +253,7 @@ else
     private bool loading = true;
     private bool deleting;
     private Article? pendingDelete;
+    private Article? editingArticle;
 
     private string search = "";
     private string authorFilter = "";
@@ -285,6 +292,32 @@ else
     public void SetView(int view)
     {
         this.view = view;
+    }
+
+    private void OpenAdd()
+    {
+        editingArticle = null;
+        view = 2;
+    }
+
+    private void StartEdit(Article article)
+    {
+        editingArticle = article;
+        view = 2;
+    }
+
+    private void CancelEdit()
+    {
+        editingArticle = null;
+        view = 1;
+    }
+
+    private async Task FinishEditAsync()
+    {
+        await RefreshAsync();
+        editingArticle = null;
+        view = 1;
+        _ = ShowToastAsync("Zmiany zostały zapisane.");
     }
 
     public async Task LoadArticleAsync()
@@ -406,15 +439,15 @@ else
     private string ViewTitle => view switch
     {
         1 => "Artykuły",
-        2 => "Nowy artykuł",
+        2 => editingArticle is null ? "Nowy artykuł" : "Edytuj artykuł",
         3 => "Nowy użytkownik",
         _ => "Przegląd"
     };
 
     private string ViewSub => view switch
     {
-        1 => "Wyszukuj, podglądaj i usuwaj opublikowane artykuły.",
-        2 => "Napisz artykuł i dodaj do niego zdjęcie.",
+        1 => "Wyszukuj, podglądaj, edytuj i usuwaj opublikowane artykuły.",
+        2 => editingArticle is null ? "Napisz artykuł i dodaj do niego zdjęcie." : "Zmień tytuł, treść, autora lub zdjęcie artykułu.",
         3 => "Utwórz konto dla nowego użytkownika.",
         _ => "Zarządzaj artykułami i użytkownikami gazetki."
     };
@@ -437,6 +470,7 @@ else
         "external" => "<path d=\"M14 3h7v7M10 14L21 3M21 14v7H3V3h7\"/>",
         "trash" => "<path d=\"M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6\"/>",
         "check" => "<path d=\"M20 6L9 17l-5-5\"/>",
+        "edit" => "<path d=\"M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\"/>",
         "logout" => "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9\"/>",
         _ => ""
     };
