@@ -9,12 +9,15 @@ namespace SchoolNewspaperBlazorApp.Service
     public class ArticleService : IArticleService
     {
         private readonly IArticleRepository _articleRepository;
-        public ArticleService(IArticleRepository articleRepository)
+        private readonly IPermissionService _permissionService;
+        public ArticleService(IArticleRepository articleRepository, IPermissionService permissionService)
         {
             _articleRepository = articleRepository;
+            _permissionService = permissionService;
         }
         public async Task AddArticleAsync(string title, string text, string author, int fileId)
         {
+            await _permissionService.RequirePermissionAsync(EnumPermissions.AddArticle);
             var article = new Article
             {
                 Title = title,
@@ -40,6 +43,7 @@ namespace SchoolNewspaperBlazorApp.Service
         }
         public async Task UpdateArticleAsync(int id, string title, string text, string author, int fileId)
         {
+            await _permissionService.RequirePermissionAsync(EnumPermissions.EditArticle);
             if (id <= 0)
             {
                 throw new ArgumentException("Nieprawidłowe ID artykułu.", nameof(id));
@@ -58,6 +62,7 @@ namespace SchoolNewspaperBlazorApp.Service
         }
         public async Task RemoveArticleByIdAsync(int id)
         {
+            await _permissionService.RequirePermissionAsync(EnumPermissions.DeleteArticle);
             if (id > 0)
             {
                 await _articleRepository.RemoveArticleByIdAsync(id);

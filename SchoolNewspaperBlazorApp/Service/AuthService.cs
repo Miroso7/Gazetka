@@ -15,14 +15,18 @@ namespace SchoolNewspaperBlazorApp.Service
         private const int Iterations = 600_000;
 
         private readonly IAuthRepository _authRepository;
+        private readonly IPermissionService _permissionService;
 
-        public AuthService(IAuthRepository authRepository)
+        public AuthService(IAuthRepository authRepository, IPermissionService permissionService)
         {
             _authRepository = authRepository;
+            _permissionService = permissionService;
         }
 
         public async Task AddUserAsync(string login, string password, string email)
         {
+            await _permissionService.RequirePermissionAsync(EnumPermissions.AddUser);
+
             var user = new User
             {
                 Login = login,

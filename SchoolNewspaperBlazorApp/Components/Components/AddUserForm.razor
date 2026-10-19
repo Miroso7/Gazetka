@@ -11,6 +11,11 @@
         <div class="form-alert" role="status">Użytkownik został dodany.</div>
     }
 
+    @if (error != null)
+    {
+        <div class="auth-alert" role="alert">@error</div>
+    }
+
     <form @onsubmit="AddUserAsync" @onsubmit:preventDefault>
         <label class="form-label">Login</label>
         <input @bind="Login" class="form-control mb-3" placeholder="Login" />
@@ -31,15 +36,25 @@
     public required string Password { get; set; }
     public required string Email { get; set; }
     private bool added;
+    private string? error;
 
     [Inject]
     public IAuthService AuthService { get; set; } = default!;
 
     public async Task AddUserAsync()
     {
-        await AuthService.AddUserAsync(Login, Password, Email);
-        Login = Password = Email = string.Empty;
-        added = true;
+        added = false;
+        error = null;
+        try
+        {
+            await AuthService.AddUserAsync(Login, Password, Email);
+            Login = Password = Email = string.Empty;
+            added = true;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            error = ex.Message;
+        }
     }
 
 }

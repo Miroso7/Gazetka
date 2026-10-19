@@ -1,0 +1,181 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IPermissionService PermissionService
+
+<div class="perm-legend panel">
+    <div class="panel__head">
+        <h2 class="panel__title">Dostępne uprawnienia</h2>
+    </div>
+    <ul class="perm-legend__list">
+        @foreach (var p in PermissionInfo.All)
+        {
+            <li>
+                <span class="perm-legend__name">@PermissionInfo.Label(p)</span>
+                <span class="perm-legend__desc">@PermissionInfo.Description(p)</span>
+            </li>
+        }
+    </ul>
+</div>
+
+<div class="panel perm-panel">
+    <div class="a-toolbar">
+        <div class="field">
+            <input class="field__input perm-search" type="search" placeholder="Szukaj użytkownika (login lub e-mail)..."
+                   aria-label="Szukaj użytkownika"
+                   @bind="search" @bind:event="oninput" />
+        </div>
+    </div>
+
+    @if (error != null)
+    {
+        <div class="auth-alert perm-alert" role="alert">@error</div>
+    }
+    else if (info != null)
+    {
+        <div class="form-alert perm-alert" role="status">@info</div>
+    }
+
+    @if (loading)
+    {
+        <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    }
+    else
+    {
+        var items = Filtered.ToList();
+        if (items.Count == 0)
+        {
+            <div class="empty-state">
+                @(users.Count == 0 ? "Nie ma jeszcze żadnych użytkowników." : "Brak użytkowników pasujących do wyszukiwania.")
+            </div>
+        }
+        else
+        {
+            <ul class="perm-list">
+                @foreach (var u in items)
+                {
+                    <li class="perm-row" @key="u.UserId">
+                        <div class="perm-row__user">
+                            <span class="perm-row__login">@u.Login</span>
+                            <span class="perm-row__email">@u.Email</span>
+                        </div>
+                        <div class="perm-row__chips">
+                            @foreach (var p in PermissionInfo.All)
+                            {
+                                var has = u.Permissions.Contains(p);
+                                var key = (u.UserId, p);
+                                <label class="perm-chip @(has ? "is-on" : "")" title="@PermissionInfo.Description(p)">
+                                    <input type="checkbox"
+                                           checked="@has"
+                                           disabled="@busy.Contains(key)"
+                                           @onchange="e => ToggleAsync(u, p, (bool)(e.Value ?? false))" />
+                                    <span>@PermissionInfo.Label(p)</span>
+                                </label>
+                            }
+                        </div>
+                        <div class="perm-row__actions">
+                            <button type="button" class="link-btn" @onclick="() => GrantAllAsync(u)">Nadaj wszystkie</button>
+                        </div>
+                    </li>
+                }
+            </ul>
+            <div class="a-foot">Wyświetlono @items.Count z @users.Count</div>
+        }
+    }
+</div>
+
+@code {
+    // wywoływane po każdej zmianie, żeby panel mógł odświeżyć uprawnienia zalogowanej osoby
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private List<UserWithPermissions> users = new();
+    private readonly HashSet<(int UserId, EnumPermissions Permission)> busy = new();
+    private bool loading = true;
+    private string search = "";
+    private string? error;
+    private string? info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private IEnumerable<UserWithPermissions> Filtered =>
+        string.IsNullOrWhiteSpace(search)
+            ? users
+            : users.Where(u => u.Login.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+                            || u.Email.Contains(search, StringComparison.CurrentCultureIgnoreCase));
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        try
+        {
+            users = await PermissionService.GetUsersWithPermissionsAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            users = new();
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ToggleAsync(UserWithPermissions user, EnumPermissions permission, bool granted)
+    {
+        var key = (user.UserId, permission);
+        busy.Add(key);
+        error = info = null;
+        try
+        {
+            await PermissionService.SetPermissionAsync(user.UserId, permission, granted);
+            if (granted) user.Permissions.Add(permission); else user.Permissions.Remove(permission);
+            info = granted
+                ? $"Nadano „{PermissionInfo.Label(permission)}” użytkownikowi {user.Login}."
+                : $"Odebrano „{PermissionInfo.Label(permission)}” użytkownikowi {user.Login}.";
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            error = ex.Message;
+            await LoadAsync(); // przywraca prawdziwy stan pól wyboru
+        }
+        catch (Exception)
+        {
+            error = "Nie udało się zapisać zmiany. Spróbuj ponownie.";
+            await LoadAsync();
+        }
+        finally
+        {
+            busy.Remove(key);
+        }
+    }
+
+    private async Task GrantAllAsync(UserWithPermissions user)
+    {
+        error = info = null;
+        try
+        {
+            foreach (var p in PermissionInfo.All.Where(p => !user.Permissions.Contains(p)))
+            {
+                await PermissionService.SetPermissionAsync(user.UserId, p, true);
+                user.Permissions.Add(p);
+            }
+            info = $"Nadano wszystkie uprawnienia użytkownikowi {user.Login}.";
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            error = ex.Message;
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            error = "Nie udało się zapisać zmiany. Spróbuj ponownie.";
+            await LoadAsync();
+        }
+    }
+}

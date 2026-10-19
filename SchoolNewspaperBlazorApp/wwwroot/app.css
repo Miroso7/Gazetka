@@ -2524,3 +2524,132 @@ main.container {
         margin: 0 0 1.5rem;
     }
 }
+
+/* ---------- Panel: uprawnienia ---------- */
+.perm-legend {
+    margin-bottom: 1rem;
+}
+
+.perm-legend__list {
+    display: grid;
+    gap: .15rem 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    margin: 0;
+    padding: 1rem 1.25rem;
+    list-style: none;
+}
+
+    .perm-legend__list li {
+        display: flex;
+        flex-direction: column;
+        padding: .45rem 0;
+    }
+
+.perm-legend__name {
+    font-size: .92rem;
+    font-weight: 700;
+    color: var(--navy);
+}
+
+.perm-legend__desc {
+    font-size: .84rem;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+.perm-search {
+    padding-left: .95rem;
+}
+
+.perm-alert {
+    margin: 1rem 1.25rem 0;
+}
+
+.perm-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.perm-row {
+    display: grid;
+    gap: .75rem 1.25rem;
+    grid-template-columns: minmax(10rem, 14rem) 1fr auto;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--line);
+}
+
+    .perm-row:first-child {
+        border-top: 0;
+    }
+
+.perm-row__user {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.perm-row__login {
+    font-weight: 700;
+    color: var(--navy);
+    overflow-wrap: anywhere;
+}
+
+.perm-row__email {
+    font-size: .84rem;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+}
+
+.perm-row__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+}
+
+.perm-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    margin: 0;
+    padding: .35rem .8rem;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    user-select: none;
+    transition: background .2s var(--ease), color .2s var(--ease), border-color .2s var(--ease);
+}
+
+    .perm-chip:hover {
+        border-color: var(--blue);
+    }
+
+    .perm-chip input {
+        accent-color: var(--blue);
+        cursor: pointer;
+    }
+
+    .perm-chip:focus-within {
+        box-shadow: 0 0 0 .22rem rgba(23, 105, 224, .18);
+    }
+
+    .perm-chip.is-on {
+        color: var(--blue-dark);
+        background: var(--blue-soft);
+        border-color: rgba(23, 105, 224, .35);
+    }
+
+.perm-row__actions {
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .perm-row {
+        grid-template-columns: 1fr;
+    }
+}

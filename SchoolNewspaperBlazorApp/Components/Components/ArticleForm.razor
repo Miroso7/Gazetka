@@ -2,6 +2,7 @@
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 @inject IArticleService articleService
 @inject IFileService fileService
+@inject IPermissionService permissionService
 
 <div class="add-article-form">
     <h1 class="add-article-form__title">@(IsEditing ? "Edytuj artykuł" : "Dodaj artykuł")</h1>
@@ -102,6 +103,28 @@
 
     private async Task SaveArticle()
     {
+        try
+        {
+            await SaveArticleCore();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private async Task SaveArticleCore()
+    {
+        // sprawdzamy permisję zanim cokolwiek wgramy (zdjęcie trafia na dysk jeszcze przed zapisem artykułu)
+        var needed = IsEditing ? EnumPermissions.EditArticle : EnumPermissions.AddArticle;
+        if (!await permissionService.HasPermissionAsync(needed))
+        {
+            errorMessage = IsEditing
+                ? "Nie masz uprawnienia do edycji artykułów."
+                : "Nie masz uprawnienia do dodawania artykułów.";
+            return;
+        }
+
         // zdjęcie jest wymagane: przy dodawaniu trzeba wybrać plik,
         // przy edycji wystarczy dotychczasowe zdjęcie albo nowe
         var hasPhoto = file != null || (IsEditing && existingFileId > 0);

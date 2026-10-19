@@ -1,10 +1,19 @@
 ﻿using SchoolNewspaperBlazorApp.Data;
-using System.Security.Claims;
 
 namespace SchoolNewspaperBlazorApp.Interfaces.Service
 {
     public interface IPermissionService
     {
         Task<bool> HasPermissionAsync(EnumPermissions permission);
+
+        // Wszystkie permisje zalogowanego użytkownika (do pokazywania / ukrywania elementów UI).
+        Task<HashSet<EnumPermissions>> GetMyPermissionsAsync();
+
+        // Rzuca UnauthorizedAccessException, gdy użytkownik nie ma permisji.
+        Task RequirePermissionAsync(EnumPermissions permission);
+
+        // Oba poniższe wymagają permisji ManageUser.
+        Task<List<UserWithPermissions>> GetUsersWithPermissionsAsync();
+        Task SetPermissionAsync(int userId, EnumPermissions permission, bool granted);
     }
 }

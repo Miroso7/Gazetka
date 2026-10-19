@@ -8,9 +8,11 @@ namespace SchoolNewspaperBlazorApp.Service
     public class FileService : IFileService
     {
         private readonly IFileRepository _fileRepository;
-        public FileService(IFileRepository fileRepository)
+        private readonly IPermissionService _permissionService;
+        public FileService(IFileRepository fileRepository, IPermissionService permissionService)
         {
             _fileRepository = fileRepository;
+            _permissionService = permissionService;
         }
         private readonly string uploadPath = @"C:\Users\Uczeń2026\source\repos\SchoolNewspaperBlazorApp\Images";
         public async Task<string> GetPreviewAsync(IBrowserFile file)
@@ -23,6 +25,12 @@ namespace SchoolNewspaperBlazorApp.Service
         }
         public async Task<int> UploadImage(IBrowserFile file)
         {
+            // zdjęcia wgrywa się tylko przy dodawaniu albo edycji artykułu
+            if (!await _permissionService.HasPermissionAsync(EnumPermissions.AddArticle)
+                && !await _permissionService.HasPermissionAsync(EnumPermissions.EditArticle))
+            {
+                throw new UnauthorizedAccessException("Brak uprawnienia do dodawania zdjęć.");
+            }
             //Tworzenie folderu
             Directory.CreateDirectory(uploadPath);
             //Pobieranie extension z pliku czyli np .png
