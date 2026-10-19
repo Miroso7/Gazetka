@@ -1,7 +1,6 @@
 ﻿@page "/login"
-@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Components.Authorization
-
+@rendermode InteractiveServer
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthState
 
@@ -96,21 +95,20 @@
     private ElementReference emailInput;
     private bool showPassword;
 
-    protected override async Task OnInitializedAsync()
-    {
-        // jeśli użytkownik jest już zalogowany (cookie), od razu wpuszczamy go do panelu
-        var state = await AuthState.GetAuthenticationStateAsync();
-        if (state.User.Identity?.IsAuthenticated == true)
-        {
-            Navigation.NavigateTo("/adminPanel", replace: true);
-        }
-    }
+    
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
+{
+    if (!firstRender) return;
+
+    // zalogowany użytkownik nie ma co robić na /login
+    var state = await AuthState.GetAuthenticationStateAsync();
+    if (state.User.Identity?.IsAuthenticated == true)
     {
-        if (firstRender)
-        {
-            try { await emailInput.FocusAsync(); } catch (Exception) { }
-        }
+        Navigation.NavigateTo("/adminPanel", forceLoad: true, replace: true);
+        return;
     }
+
+    try { await emailInput.FocusAsync(); } catch (Exception) { }
+}
 }

@@ -28,12 +28,13 @@ namespace SchoolNewspaperBlazorApp.Data
                     .Select(p => new Permission { Id = (int)p, PermissionName = p }));
             });
 
+
             mb.Entity<UserPermission>(e =>
             {
                 e.HasIndex(x => new { x.UserId, x.PermissionId }).IsUnique();
 
                 e.HasOne(x => x.User)
-                    .WithMany()
+                    .WithMany(x => x.UserPermission)
                     .HasForeignKey(x => x.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
 
@@ -42,6 +43,7 @@ namespace SchoolNewspaperBlazorApp.Data
                     .HasForeignKey(x => x.PermissionId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+
         }
     }
 }

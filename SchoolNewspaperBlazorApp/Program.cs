@@ -77,6 +77,18 @@ namespace SchoolNewspaperBlazorApp
             // inaczej serwer nie odczyta cookie i użytkownik zawsze będzie "niezalogowany".
             app.UseAuthentication();
             app.UseAuthorization();
+
+            app.Use(async (context, next) =>
+            {
+                if (HttpMethods.IsGet(context.Request.Method)
+                    && context.Request.Path.Equals("/login", StringComparison.OrdinalIgnoreCase)
+                    && context.User.Identity?.IsAuthenticated == true)
+                {
+                    context.Response.Redirect("/adminPanel");
+                    return;
+                }
+                await next();
+            });
             app.UseAntiforgery();
 
             app.MapPost("/auth/login", async (

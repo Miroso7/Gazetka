@@ -8,5 +8,6 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
         Task<string> GetPreviewAsync(IBrowserFile file);
         Task<int> UploadImage(IBrowserFile file);
         Task<string> GetFileNameByIdAsync(int id);
+
     }
 }
