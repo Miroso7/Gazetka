@@ -9,5 +9,6 @@
         ManageUser = 4,
         ManagePermissions = 5,
         AddUser = 6,
+        Master = 7,
     }
 }

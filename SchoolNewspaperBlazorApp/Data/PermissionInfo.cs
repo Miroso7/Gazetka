@@ -4,7 +4,13 @@
     // Nowa permisja = nowa wartość na KOŃCU enuma EnumPermissions + wpis tutaj.
     public static class PermissionInfo
     {
-        public static IReadOnlyList<EnumPermissions> All { get; } = Enum.GetValues<EnumPermissions>();
+        // Uprawnienia, które można nadawać z panelu. Master (i wynikające z niego ManageUser)
+        // nadaje się wyłącznie ręcznie w bazie, więc nie pokazujemy ich jako pól do zaznaczenia.
+        public static IReadOnlyList<EnumPermissions> All { get; } = Enum.GetValues<EnumPermissions>()
+            .Where(p => p is not (EnumPermissions.Master
+                               or EnumPermissions.ManageUser
+                               or EnumPermissions.ManagePermissions))
+            .ToList();
 
         public static string Label(EnumPermissions permission) => permission switch
         {
@@ -13,6 +19,7 @@
             EnumPermissions.DeleteArticle => "Usuwanie artykułów",
             EnumPermissions.AddUser => "Dodawanie użytkowników",
             EnumPermissions.ManageUser => "Zarządzanie uprawnieniami",
+            EnumPermissions.Master => "Master",
             _ => permission.ToString()
         };
 
@@ -23,6 +30,7 @@
             EnumPermissions.DeleteArticle => "Przycisk „Usuń” przy artykułach.",
             EnumPermissions.AddUser => "Zakładka „Dodaj użytkownika” i tworzenie nowych kont.",
             EnumPermissions.ManageUser => "Zakładka „Uprawnienia”: nadawanie i odbieranie permisji innym.",
+            EnumPermissions.Master => "Konto główne: jako jedyne zarządza uprawnieniami innych użytkowników.",
             _ => ""
         };
     }

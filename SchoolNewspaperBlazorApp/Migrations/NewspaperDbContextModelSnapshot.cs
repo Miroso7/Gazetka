@@ -116,6 +116,11 @@ namespace SchoolNewspaperBlazorApp.Migrations
                         {
                             Id = 6,
                             PermissionName = 6
+                        },
+                        new
+                        {
+                            Id = 7,
+                            PermissionName = 7
                         });
                 });
 
