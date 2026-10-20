@@ -2,19 +2,10 @@
 @using Microsoft.AspNetCore.Components
 
 @using SchoolNewspaperBlazorApp.Interfaces.Service
+@using SchoolNewspaperBlazorApp.Service
 
 <div class="add-article-form">
     <h1 class="add-article-form__title">Dodaj użytkownika</h1>
-
-    @if (added)
-    {
-        <div class="form-alert" role="status">Użytkownik został dodany.</div>
-    }
-
-    @if (error != null)
-    {
-        <div class="auth-alert" role="alert">@error</div>
-    }
 
     <form @onsubmit="AddUserAsync" @onsubmit:preventDefault>
         <label class="form-label">Login</label>
@@ -35,25 +26,24 @@
     public required string Login { get; set; }
     public required string Password { get; set; }
     public required string Email { get; set; }
-    private bool added;
-    private string? error;
 
     [Inject]
     public IAuthService AuthService { get; set; } = default!;
 
+    [Inject]
+    public NotificationService Notify { get; set; } = default!;
+
     public async Task AddUserAsync()
     {
-        added = false;
-        error = null;
         try
         {
             await AuthService.AddUserAsync(Login, Password, Email);
             Login = Password = Email = string.Empty;
-            added = true;
+            Notify.Show("Dodano użytkownika.");
         }
         catch (UnauthorizedAccessException ex)
         {
-            error = ex.Message;
+            Notify.Show(ex.Message, NotificationType.Error);
         }
     }
 

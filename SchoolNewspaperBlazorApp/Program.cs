@@ -37,6 +37,7 @@ namespace SchoolNewspaperBlazorApp
             builder.Services.AddScoped<IFileService, FileService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IPermissionService, PermissionService>();
+            builder.Services.AddScoped<NotificationService>();
 
             builder.Services.AddAuthentication(
                 CookieAuthenticationDefaults.AuthenticationScheme)
@@ -69,7 +70,7 @@ namespace SchoolNewspaperBlazorApp
             app.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new PhysicalFileProvider
-                (@"C:\Users\Mirek\source\repos\SchoolNewspaperBlazorApp\Images"),
+                (@"C:\Users\Uczeń2026\source\repos\Gazetka\Images"),
                 RequestPath = "/Images"
             });
 

@@ -12,7 +12,7 @@ using SchoolNewspaperBlazorApp.Data;
 namespace SchoolNewspaperBlazorApp.Migrations
 {
     [DbContext(typeof(NewspaperDbContext))]
-    [Migration("20261019143805_Init")]
+    [Migration("20261020054821_Init")]
     partial class Init
     {
         /// <inheritdoc />

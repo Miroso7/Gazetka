@@ -1,4 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+@using SchoolNewspaperBlazorApp.Service
+@inject NotificationService Notify
 
 <header class="site-header" data-enhance-nav="false">
     <div class="container site-nav">
@@ -46,6 +49,15 @@
         </div>
 
     </div>
+
+    <div class="notify-wrap" aria-live="polite">
+        @if (message is not null)
+        {
+            <div class="notify notify--@type.ToString().ToLower()" role="status" @key="counter">
+                <span>@message</span>
+            </div>
+        }
+    </div>
 </header>
 
 <main id="main" class="container py-4">
@@ -79,3 +91,41 @@
         </div>
     </div>
 </footer>
+
+@code {
+    private string? message;
+    private NotificationType type;
+    private int counter;
+    private CancellationTokenSource? cts;
+
+    protected override void OnInitialized() => Notify.OnShow += HandleShow;
+
+    private void HandleShow(string text, NotificationType t)
+    {
+        cts?.Cancel();
+        cts = new CancellationTokenSource();
+
+        message = text;
+        type = t;
+        counter++;   // nowy @key = animacja startuje od nowa przy kolejnym powiadomieniu
+
+        _ = InvokeAsync(StateHasChanged);
+        _ = HideAfterAsync(cts.Token);
+    }
+
+    private async Task HideAfterAsync(CancellationToken token)
+    {
+        try { await Task.Delay(3000, token); }
+        catch (OperationCanceledException) { return; }
+
+        message = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Notify.OnShow -= HandleShow;
+        cts?.Cancel();
+        cts?.Dispose();
+    }
+}

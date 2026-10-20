@@ -1,16 +1,15 @@
 ﻿@page "/adminPanel"
 @attribute [Authorize]
-@implements IDisposable
-@rendermode InteractiveServer
 @inject IArticleService articleService
 @inject IFileService fileService
 @inject IPermissionService permissionService
 @inject NavigationManager Navigation
-@inject AuthenticationStateProvider AuthState
+@inject NotificationService Notify
 @using Microsoft.AspNetCore.Components.Authorization
 @using SchoolNewspaperBlazorApp.Components.Components
 @using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Interfaces.Service
+@using SchoolNewspaperBlazorApp.Service
 
 
 @if (!authorized)
@@ -244,7 +243,7 @@ else
             else if (view == 2 && (editingArticle is null ? Can(EnumPermissions.AddArticle) : Can(EnumPermissions.EditArticle)))
             {
                 <ArticleForm @key="(editingArticle?.Id ?? 0)" ArticleToEdit="editingArticle"
-                             OnAdded="RefreshAsync" OnEdited="FinishEditAsync" OnCancelled="CancelEdit" />
+                             OnAdded="ArticleAddedAsync" OnEdited="FinishEditAsync" OnCancelled="CancelEdit" />
             }
             else if (view == 3 && Can(EnumPermissions.AddUser))
             {
@@ -252,7 +251,7 @@ else
             }
             else if (view == 4 && Can(EnumPermissions.ManageUser))
             {
-                <PermissionManager OnChanged="RefreshPermissionsAsync" />
+                <PermissionManager OnChanged="PermissionsChangedAsync" />
             }
 
         </section>
@@ -277,14 +276,6 @@ else
     </div>
 }
 
-@if (toast != null)
-{
-    <div class="snack @(toastError ? "snack--error" : "")" role="status" aria-live="polite">
-        @Icon(toastError ? "trash" : "check")
-        <span>@toast</span>
-    </div>
-}
-
 
 @code {
 
@@ -304,10 +295,6 @@ else
     private string search = "";
     private string authorFilter = "";
     private string sort = "newest";
-
-    private string? toast;
-    private bool toastError;
-    private CancellationTokenSource? toastCts;
 
     private bool authorized;
 
@@ -335,16 +322,17 @@ else
         _ => true
     };
 
-    protected override async Task OnInitializedAsync()
-{
-    authorized = true;
-    myPermissions = await permissionService.GetMyPermissionsAsync();
-    await RefreshAsync();
-}
-
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && authorized && LoggedInFlag == "1")
+        if (!firstRender) return;
+
+        // dane ładujemy dopiero po starcie obwodu (bez podwójnego ładowania przy prerenderze)
+        myPermissions = await permissionService.GetMyPermissionsAsync();
+        await RefreshAsync();
+        authorized = true;
+        StateHasChanged();
+
+        if (LoggedInFlag == "1")
         {
             _ = ShowToastAsync("Zalogowano pomyślnie.");
             // czyścimy adres, żeby po odświeżeniu strony komunikat nie wracał
@@ -388,8 +376,20 @@ else
 
     public async Task LoadArticleAsync()
     {
+        SetView(1);              // widok od razu, ze szkieletem ładowania
         await RefreshAsync();
-        SetView(1);
+    }
+
+    private async Task ArticleAddedAsync()
+    {
+        await RefreshAsync();
+        _ = ShowToastAsync("Dodano artykuł.");
+    }
+
+    private async Task PermissionsChangedAsync()
+    {
+        await RefreshPermissionsAsync();
+        _ = ShowToastAsync("Zapisano zmiany w uprawnieniach.");
     }
 
     private async Task RefreshAsync()
@@ -399,12 +399,13 @@ else
         {
             articleList = await articleService.GetAllArticlesAsync();
             imageUrls.Clear();
-            foreach (var fileId in articleList.Select(a => a.FileId).Distinct())
+
+            var names = await fileService.GetFileNamesByIdsAsync(articleList.Select(a => a.FileId));
+            foreach (var (id, name) in names)
             {
-                var fileName = await fileService.GetFileNameByIdAsync(fileId);
-                if (!string.IsNullOrWhiteSpace(fileName))
+                if (!string.IsNullOrWhiteSpace(name))
                 {
-                    imageUrls[fileId] = $"/Images/{fileName}";
+                    imageUrls[id] = $"/Images/{name}";
                 }
             }
         }
@@ -483,32 +484,10 @@ else
         }
     }
 
-    private async Task ShowToastAsync(string message, bool error = false)
+    private Task ShowToastAsync(string message, bool error = false)
     {
-        toastCts?.Cancel();
-        toastCts = new CancellationTokenSource();
-        var token = toastCts.Token;
-
-        toast = message;
-        toastError = error;
-        await InvokeAsync(StateHasChanged);
-
-        try
-        {
-            await Task.Delay(3500, token);
-        }
-        catch (TaskCanceledException)
-        {
-            return;
-        }
-        toast = null;
-        await InvokeAsync(StateHasChanged);
-    }
-
-    public void Dispose()
-    {
-        toastCts?.Cancel();
-        toastCts?.Dispose();
+        Notify.Show(message, error ? NotificationType.Error : NotificationType.Success);
+        return Task.CompletedTask;
     }
 
     private string Active(int v) => view == v ? "is-active" : "";

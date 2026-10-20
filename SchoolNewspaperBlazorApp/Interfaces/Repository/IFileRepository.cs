@@ -7,6 +7,7 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Repository
         Task<int> GetLastFileId();
         Task AddFileAsync(MediaFile file);
         Task<MediaFile> GetFileByIdAsync(int id);
+        Task<Dictionary<int, string>> GetFileNamesByIdsAsync(IEnumerable<int> ids);
 
     }
 }

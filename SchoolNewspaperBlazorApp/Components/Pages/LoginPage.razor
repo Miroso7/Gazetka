@@ -1,6 +1,5 @@
 ﻿@page "/login"
 @using Microsoft.AspNetCore.Components.Authorization
-@rendermode InteractiveServer
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthState
 
@@ -98,17 +97,17 @@
     
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
-{
-    if (!firstRender) return;
-
-    // zalogowany użytkownik nie ma co robić na /login
-    var state = await AuthState.GetAuthenticationStateAsync();
-    if (state.User.Identity?.IsAuthenticated == true)
     {
-        Navigation.NavigateTo("/adminPanel", forceLoad: true, replace: true);
-        return;
-    }
+        if (!firstRender) return;
 
-    try { await emailInput.FocusAsync(); } catch (Exception) { }
-}
+        // zalogowany użytkownik nie ma co robić na /login
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            Navigation.NavigateTo("/adminPanel", forceLoad: true, replace: true);
+            return;
+        }
+
+        try { await emailInput.FocusAsync(); } catch (Exception) { }
+    }
 }

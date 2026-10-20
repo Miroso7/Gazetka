@@ -36,6 +36,17 @@ namespace SchoolNewspaperBlazorApp.Repository
             return fileId;
         }
 
+        public async Task<Dictionary<int, string>> GetFileNamesByIdsAsync(IEnumerable<int> ids)
+        {
+            var idList = ids.Distinct().ToList();
+
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.Files
+                .AsNoTracking()
+                .Where(f => idList.Contains(f.Id))
+                .ToDictionaryAsync(f => f.Id, f => f.FileName);
+        }
+
         public async Task AddFileAsync(Data.MediaFile file)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
