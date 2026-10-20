@@ -13,7 +13,16 @@
     </p>
     <div class="hero__actions">
         <a class="btn btn-white" href="#aktualnosci">Czytaj aktualności</a>
-        <a class="btn btn-ghost" href="/login">Zaloguj się</a>
+        <AuthorizeView>
+            <Authorized>
+                <form method="post" action="/auth/logout" style="display: contents;">
+                    <button type="submit" class="btn btn-ghost">Wyloguj się</button>
+                </form>
+            </Authorized>
+            <NotAuthorized>
+                <a class="btn btn-ghost" href="/login">Zaloguj się</a>
+            </NotAuthorized>
+        </AuthorizeView>
     </div>
 </section>
 

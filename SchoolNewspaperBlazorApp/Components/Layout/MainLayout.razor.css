@@ -150,3 +150,11 @@ main {
         opacity: 0;
     }
 }
+
+.site-nav__logout {
+    display: contents;
+}
+
+    .site-nav__logout button {
+        cursor: pointer;
+    }

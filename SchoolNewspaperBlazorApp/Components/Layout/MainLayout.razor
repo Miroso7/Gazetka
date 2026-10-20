@@ -42,7 +42,16 @@
                         </button>
                     </form>
 
-                    <NavLink class="nav-link nav-link--cta" href="/login">Logowanie</NavLink>
+                    <AuthorizeView>
+                        <Authorized>
+                            <form method="post" action="/auth/logout" class="site-nav__logout">
+                                <button type="submit" class="nav-link nav-link--cta">Wyloguj</button>
+                            </form>
+                        </Authorized>
+                        <NotAuthorized>
+                            <NavLink class="nav-link nav-link--cta" href="/login">Logowanie</NavLink>
+                        </NotAuthorized>
+                    </AuthorizeView>
                 </div>
 
             </div>
