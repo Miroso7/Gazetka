@@ -28,6 +28,21 @@ namespace SchoolNewspaperBlazorApp.Service
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.AddUser);
 
+            if (string.IsNullOrWhiteSpace(login))
+            {
+                throw new InvalidOperationException("Login nie może być pusty.");
+            }
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                throw new InvalidOperationException("E-mail nie może być pusty.");
+            }
+
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                throw new InvalidOperationException("Hasło nie może być puste.");
+            }
+
             login = login.Trim();
             email = email.Trim();
 
