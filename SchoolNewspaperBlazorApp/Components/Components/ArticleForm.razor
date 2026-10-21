@@ -29,10 +29,10 @@
     <InputFile @key="fileInputKey" OnChange="ChoosePhoto" accept="image/*" class="form-control mb-3" />
 
     <form @onsubmit="SaveArticle" @onsubmit:preventDefault>
-        <label class="form-label">Tytuł</label>
+        <label class="form-label">Tytuł *</label>
         <input @bind="title" class="form-control mb-3" placeholder="Wpisz tytuł..." />
 
-        <label class="form-label">Treść</label>
+        <label class="form-label">Treść *</label>
         <textarea @bind="text" class="form-control mb-3" rows="6" placeholder="Treść artykułu..."></textarea>
 
         <label class="form-label">Autor</label>
@@ -108,7 +108,7 @@
         {
             await SaveArticleCore();
         }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
         {
             errorMessage = ex.Message;
         }
@@ -126,6 +126,19 @@
             return;
         }
 
+        // tytuł i treść są wymagane (autor jest opcjonalny); sprawdzamy to przed wgraniem zdjęcia
+        added = false;
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            errorMessage = "Podaj tytuł artykułu.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            errorMessage = "Podaj treść artykułu.";
+            return;
+        }
+
         // zdjęcie jest wymagane: przy dodawaniu trzeba wybrać plik,
         // przy edycji wystarczy dotychczasowe zdjęcie albo nowe
         var hasPhoto = file != null || (IsEditing && existingFileId > 0);
@@ -136,7 +149,7 @@
         }
         errorMessage = null;
 
-        if (IsEditing) 
+        if (IsEditing)
         {
             // bez nowego zdjęcia zostaje dotychczasowe
             int fileId = existingFileId;

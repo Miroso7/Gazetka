@@ -28,11 +28,12 @@ namespace SchoolNewspaperBlazorApp.Service
         public async Task AddArticleAsync(string title, string text, string author, int fileId)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.AddArticle);
+            ValidateArticleFields(title, text);
             var article = new Article
             {
-                Title = title,
-                Text = text,
-                Author = author,
+                Title = title.Trim(),
+                Text = text.Trim(),
+                Author = author?.Trim() ?? string.Empty,
                 PublishDate = DateTime.Now,
                 FileId = fileId
             };
@@ -58,17 +59,31 @@ namespace SchoolNewspaperBlazorApp.Service
             {
                 throw new ArgumentException("Nieprawidłowe ID artykułu.", nameof(id));
             }
+            ValidateArticleFields(title, text);
 
             // data publikacji zostaje bez zmian (repozytorium aktualizuje tylko pola poniżej)
             var article = new Article
             {
                 Id = id,
-                Title = title,
-                Text = text,
-                Author = author,
+                Title = title.Trim(),
+                Text = text.Trim(),
+                Author = author?.Trim() ?? string.Empty,
                 FileId = fileId
             };
             await _articleRepository.UpdateArticleAsync(article);
+        }
+        // Tytuł i treść są wymagane, autor jest opcjonalny.
+        private static void ValidateArticleFields(string? title, string? text)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                throw new InvalidOperationException("Podaj tytuł artykułu.");
+            }
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                throw new InvalidOperationException("Podaj treść artykułu.");
+            }
         }
         public async Task RemoveArticleByIdAsync(int id)
         {
