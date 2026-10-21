@@ -1,4 +1,5 @@
 ﻿using SchoolNewspaperBlazorApp.Data;
+using SchoolNewspaperBlazorApp.Data.Enums;
 using System.Security.Claims;
 
 namespace SchoolNewspaperBlazorApp.Interfaces.Repository

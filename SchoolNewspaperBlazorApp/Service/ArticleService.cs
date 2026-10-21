@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using SchoolNewspaperBlazorApp.Data;
+using SchoolNewspaperBlazorApp.Data.Enums;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
 using SchoolNewspaperBlazorApp.Interfaces.Service;
 
@@ -10,10 +12,18 @@ namespace SchoolNewspaperBlazorApp.Service
     {
         private readonly IArticleRepository _articleRepository;
         private readonly IPermissionService _permissionService;
-        public ArticleService(IArticleRepository articleRepository, IPermissionService permissionService)
+        private readonly IFileService _fileService;
+        private readonly ILogger<ArticleService> _logger;
+        public ArticleService(
+            IArticleRepository articleRepository,
+            IPermissionService permissionService,
+            IFileService fileService,
+            ILogger<ArticleService> logger)
         {
             _articleRepository = articleRepository;
             _permissionService = permissionService;
+            _fileService = fileService;
+            _logger = logger;
         }
         public async Task AddArticleAsync(string title, string text, string author, int fileId)
         {
@@ -63,9 +73,19 @@ namespace SchoolNewspaperBlazorApp.Service
         public async Task RemoveArticleByIdAsync(int id)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.DeleteArticle);
-            if (id > 0)
+            if (id <= 0) return;
+
+            var orphanedFileId = await _articleRepository.RemoveArticleByIdAsync(id);
+            if (orphanedFileId is null) return;
+
+            // artykuł jest już usunięty, więc błąd przy kasowaniu zdjęcia nie może go "cofnąć" ani pokazać błędu
+            try
             {
-                await _articleRepository.RemoveArticleByIdAsync(id);
+                await _fileService.DeleteFileAsync(orphanedFileId.Value);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Nie udało się usunąć zdjęcia (FileId {FileId}) po usunięciu artykułu {ArticleId}.", orphanedFileId, id);
             }
         }
     }

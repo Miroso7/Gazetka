@@ -1,4 +1,5 @@
 ﻿using SchoolNewspaperBlazorApp.Data;
+using SchoolNewspaperBlazorApp.Data.Enums;
 
 namespace SchoolNewspaperBlazorApp.Interfaces.Service
 {

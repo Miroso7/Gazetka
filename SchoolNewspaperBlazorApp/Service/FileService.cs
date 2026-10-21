@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components.Forms;
 using SchoolNewspaperBlazorApp.Data;
+using SchoolNewspaperBlazorApp.Data.Enums;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
 using SchoolNewspaperBlazorApp.Interfaces.Service;
 
@@ -60,6 +61,22 @@ namespace SchoolNewspaperBlazorApp.Service
         }
         public Task<Dictionary<int, string>> GetFileNamesByIdsAsync(IEnumerable<int> ids)
             => _fileRepository.GetFileNamesByIdsAsync(ids);
+
+        public async Task DeleteFileAsync(int id)
+        {
+            await _permissionService.RequirePermissionAsync(EnumPermissions.DeleteArticle);
+            if (id <= 0) return;
+
+            var fileName = await _fileRepository.DeleteFileAsync(id);
+            if (string.IsNullOrWhiteSpace(fileName)) return;
+
+            // GetFileName odcina ewentualne ścieżki, więc nie da się wyjść poza folder Images
+            var fullPath = Path.Combine(uploadPath, Path.GetFileName(fileName));
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+            }
+        }
 
         public async Task<string> GetFileNameByIdAsync(int id)
         {

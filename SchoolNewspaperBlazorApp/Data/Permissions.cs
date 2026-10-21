@@ -1,4 +1,6 @@
-﻿namespace SchoolNewspaperBlazorApp.Data
+﻿using SchoolNewspaperBlazorApp.Data.Enums;
+
+namespace SchoolNewspaperBlazorApp.Data
 {
     // Słownik uprawnień (wypełniany automatycznie z enuma EnumPermissions).
     public class Permission

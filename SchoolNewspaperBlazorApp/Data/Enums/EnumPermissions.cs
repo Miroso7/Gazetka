@@ -1,4 +1,4 @@
-﻿namespace SchoolNewspaperBlazorApp.Data
+﻿namespace SchoolNewspaperBlazorApp.Data.Enums
 {
     // Wartości są zapisywane w bazie jako liczby – nie zmieniaj istniejących numerów.
     public enum EnumPermissions

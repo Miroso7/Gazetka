@@ -8,6 +8,8 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Repository
         Task<List<Article>> GetAllArticlesAsync();
         Task<Article> GetArticleByIdAsync(int id);
         Task UpdateArticleAsync(Article article);
-        Task RemoveArticleByIdAsync(int id);
+        // Usuwa artykuł. Zwraca Id jego zdjęcia, jeśli po usunięciu żaden inny artykuł już go nie używa
+        // (wtedy zdjęcie można skasować), w przeciwnym razie null.
+        Task<int?> RemoveArticleByIdAsync(int id);
     }
 }

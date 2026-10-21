@@ -1,4 +1,6 @@
-﻿namespace SchoolNewspaperBlazorApp.Data
+﻿using SchoolNewspaperBlazorApp.Data.Enums;
+
+namespace SchoolNewspaperBlazorApp.Data
 {
     // Użytkownik razem z listą jego uprawnień (do wyświetlenia w panelu).
     public class UserPermissionsDto

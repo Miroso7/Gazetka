@@ -47,6 +47,22 @@ namespace SchoolNewspaperBlazorApp.Repository
                 .ToDictionaryAsync(f => f.Id, f => f.FileName);
         }
 
+        public async Task<string?> DeleteFileAsync(int id)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var file = await context.Files.FirstOrDefaultAsync(f => f.Id == id);
+            if (file == null)
+            {
+                return null;
+            }
+
+            var fileName = file.FileName;
+            context.Files.Remove(file);
+            await context.SaveChangesAsync();
+            return fileName;
+        }
+
         public async Task AddFileAsync(Data.MediaFile file)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();

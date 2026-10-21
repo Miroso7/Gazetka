@@ -59,7 +59,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             await context.SaveChangesAsync();
         }
 
-        public async Task RemoveArticleByIdAsync(int id)
+        public async Task<int?> RemoveArticleByIdAsync(int id)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -69,8 +69,17 @@ namespace SchoolNewspaperBlazorApp.Repository
                 throw new Exception($"Article with ID {id} not found.");
             }
 
+            var fileId = article.FileId;
+
             context.Articles.Remove(article);
             await context.SaveChangesAsync();
+
+            // zdjęcie do skasowania tylko wtedy, gdy nie używa go żaden inny artykuł
+            if (fileId <= 0 || await context.Articles.AnyAsync(a => a.FileId == fileId))
+            {
+                return null;
+            }
+            return fileId;
         }
     }
 }

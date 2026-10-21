@@ -9,6 +9,8 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
         Task<int> UploadImage(IBrowserFile file);
         Task<string> GetFileNameByIdAsync(int id);
         Task<Dictionary<int, string>> GetFileNamesByIdsAsync(IEnumerable<int> ids);
+        // Usuwa zdjęcie: wpis w bazie i plik z folderu Images.
+        Task DeleteFileAsync(int id);
 
     }
 }

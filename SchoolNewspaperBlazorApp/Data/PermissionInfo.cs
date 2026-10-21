@@ -1,4 +1,6 @@
-﻿namespace SchoolNewspaperBlazorApp.Data
+﻿using SchoolNewspaperBlazorApp.Data.Enums;
+
+namespace SchoolNewspaperBlazorApp.Data
 {
     // Polskie nazwy i opisy permisji wyświetlane w panelu admina.
     // Nowa permisja = nowa wartość na KOŃCU enuma EnumPermissions + wpis tutaj.
