@@ -41,7 +41,7 @@
             Login = Password = Email = string.Empty;
             Notify.Show("Dodano użytkownika.");
         }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
         {
             Notify.Show(ex.Message, NotificationType.Error);
         }

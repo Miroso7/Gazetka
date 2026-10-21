@@ -31,6 +31,20 @@ namespace SchoolNewspaperBlazorApp.Repository
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
 
+        public async Task<bool> LoginExistsAsync(string login)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.Users.AnyAsync(u => u.Login == login);
+        }
+
+        public async Task<bool> EmailExistsAsync(string email)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.Users.AnyAsync(u => u.Email == email);
+        }
+
         public async Task UpdateUserAsync(User user)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();

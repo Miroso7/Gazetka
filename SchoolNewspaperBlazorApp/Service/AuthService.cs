@@ -28,11 +28,24 @@ namespace SchoolNewspaperBlazorApp.Service
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.AddUser);
 
+            login = login.Trim();
+            email = email.Trim();
+
+            if (await _authRepository.LoginExistsAsync(login))
+            {
+                throw new InvalidOperationException("Użytkownik o takim loginie już istnieje.");
+            }
+
+            if (await _authRepository.EmailExistsAsync(email))
+            {
+                throw new InvalidOperationException("Użytkownik o takim adresie e-mail już istnieje.");
+            }
+
             var user = new User
             {
                 Login = login,
                 Password = HashPassword(password),
-                Email = email.Trim(),
+                Email = email,
                 RegisterDate = DateTime.Now
             };
 
