@@ -3,6 +3,8 @@
 @using SchoolNewspaperBlazorApp.Service
 @inject NotificationService Notify
 
+<a class="skip-link" href="#main" onclick="var m=document.getElementById('main'); if(m){m.focus(); m.scrollIntoView();} return false;">Przejdź do treści</a>
+
 <header class="site-header" data-enhance-nav="false">
     <div class="container site-nav">
 
@@ -69,7 +71,7 @@
     </div>
 </header>
 
-<main id="main" class="container py-4">
+<main id="main" class="container py-4" tabindex="-1">
     @Body
 </main>
 
@@ -78,7 +80,7 @@
         <div class="site-footer__grid">
             <div class="site-footer__about">
                 <span class="site-footer__brand">Gazetka szkolna</span>
-                <p>Aktualności, wydarzenia i artykuły uczniów Technikum Informatycznego.</p>
+                <p>Aktualności, wydarzenia i artykuły uczniów Technikum Informatycznego, w jednym miejscu.</p>
             </div>
 
             <nav class="site-footer__col" aria-label="Nawigacja w stopce">
@@ -90,15 +92,33 @@
 
             <nav class="site-footer__col" aria-label="Konto">
                 <span class="site-footer__heading">Dla redakcji</span>
-                <a href="/login">Logowanie</a>
                 <a href="/adminPanel">Admin Panel</a>
+                <AuthorizeView>
+                    <Authorized>
+                        <form method="post" action="/auth/logout" class="site-footer__form">
+                            <button type="submit" class="site-footer__link">Wyloguj</button>
+                        </form>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/login">Logowanie</a>
+                    </NotAuthorized>
+                </AuthorizeView>
             </nav>
         </div>
 
         <div class="site-footer__bottom">
             <span>© @DateTime.Now.Year Technikum Informatyczne. Wszelkie prawa zastrzeżone.</span>
+            <button type="button" class="site-footer__top-btn"
+                    aria-label="Wróć na górę" title="Wróć na górę"
+                    onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+            </button>
         </div>
     </div>
+
 </footer>
 
 @code {
