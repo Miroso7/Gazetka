@@ -3,6 +3,7 @@
 @using Microsoft.JSInterop
 @using SchoolNewspaperBlazorApp.Components.Components
 @using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 @implements IDisposable
 @inject IArticleService ArticleService
@@ -73,7 +74,7 @@ else
 {
     <article class="ap">
         <header class="ap-head">
-            <span class="ap-kicker">Aktualności</span>
+            <span class="ap-kicker">@article.Type.Label()</span>
             <h1 class="ap-title">@article.Title</h1>
 
             <div class="ap-meta">

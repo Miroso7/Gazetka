@@ -29,6 +29,14 @@
     <InputFile @key="fileInputKey" OnChange="ChoosePhoto" accept="image/*" class="form-control mb-3" />
 
     <form @onsubmit="SaveArticle" @onsubmit:preventDefault>
+        <label class="form-label">Kategoria *</label>
+        <select @bind="type" class="form-select mb-3">
+            @foreach (var option in Enum.GetValues<ArticleType>())
+            {
+                <option value="@option">@option.Label()</option>
+            }
+        </select>
+
         <label class="form-label">Tytuł *</label>
         <input @bind="title" class="form-control mb-3" placeholder="Wpisz tytuł..." />
 
@@ -84,6 +92,7 @@
     private string title = "";
     private string text = "";
     private string author = "";
+    private ArticleType type = ArticleType.News;
     private string? previewImage;
     private bool added;
     private string? errorMessage;
@@ -131,6 +140,7 @@
         title = ArticleToEdit.Title ?? "";
         text = ArticleToEdit.Text ?? "";
         author = ArticleToEdit.Author ?? "";
+        type = ArticleToEdit.Type;
         existingFileId = ArticleToEdit.FileId;
         previewImage = null;
 
@@ -296,7 +306,7 @@
             {
                 fileId = await fileService.UploadImage(file);
             }
-            await articleService.UpdateArticleAsync(ArticleToEdit!.Id, title, text, author, fileId, galleryFileIds, removedImageIds);
+            await articleService.UpdateArticleAsync(ArticleToEdit!.Id, title, text, author, type, fileId, galleryFileIds, removedImageIds);
             file = null;
             await OnEdited.InvokeAsync();
             return;
@@ -307,7 +317,7 @@
         {
             id = await fileService.UploadImage(file);
         }
-        await articleService.AddArticleAsync(title, text, author, id, galleryFileIds);
+        await articleService.AddArticleAsync(title, text, author, type, id, galleryFileIds);
         title = text = author = "";
         previewImage = null;
         stagedPhotos.Clear();

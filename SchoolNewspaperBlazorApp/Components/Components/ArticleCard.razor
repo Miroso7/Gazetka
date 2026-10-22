@@ -1,10 +1,11 @@
 ﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 
 <div class="article-grid">
     @if (Articles.Count == 0)
     {
-        <div class="empty-state">Nie ma jeszcze żadnych artykułów.</div>
+        <div class="empty-state">@EmptyText</div>
     }
 
     @for (var i = 0; i < Articles.Count; i++)
@@ -39,6 +40,11 @@
             </div>
 
             <div class="article-card__body">
+                @if (ShowType)
+                {
+                    <span class="article-card__type article-card__type--@article.Type.CssName()">@article.Type.Label()</span>
+                }
+
                 <div class="article-card__meta">
                     <span class="article-card__avatar" aria-hidden="true">@Initials(article.Author)</span>
                     <span class="article-card__author">@article.Author</span>
@@ -101,6 +107,11 @@
     public List<Article> Articles { get; set; } = new();
     [Parameter]
     public bool permissions { get; set; }
+    // etykieta typu artykułu nad tytułem (na stronach pojedynczych zakładek jest zbędna)
+    [Parameter]
+    public bool ShowType { get; set; } = true;
+    [Parameter]
+    public string EmptyText { get; set; } = "Nie ma jeszcze żadnych artykułów.";
 
     // opcjonalne: gdy rodzic poda OnEdit, w trybie permissions pojawia się przycisk „Edytuj"
 

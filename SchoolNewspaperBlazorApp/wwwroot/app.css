@@ -3698,3 +3698,70 @@ body:has(.lightbox) {
         transition: none;
     }
 }
+
+
+/* =====================================================================
+   Typy artykułów (Nowości / Wydarzenia / Ogłoszenia)
+   ===================================================================== */
+
+/* etykieta typu nad tytułem karty */
+.article-card__type {
+    align-self: flex-start;
+    margin-bottom: .6rem;
+    padding: .2rem .65rem;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--blue-dark);
+    background: var(--blue-soft);
+    border-radius: 999px;
+}
+
+.article-card__type--events {
+    color: var(--white);
+    background: var(--blue);
+}
+
+.article-card__type--announcements {
+    color: var(--white);
+    background: var(--navy);
+}
+
+/* etykieta typu w panelu admina */
+.type-chip {
+    display: inline-block;
+    margin-left: .5rem;
+    padding: .1rem .55rem;
+    font-size: .7rem;
+    font-weight: 700;
+    color: var(--blue-dark);
+    background: var(--blue-soft);
+    border-radius: 999px;
+    vertical-align: middle;
+}
+
+.type-chip--events {
+    color: var(--white);
+    background: var(--blue);
+}
+
+.type-chip--announcements {
+    color: var(--white);
+    background: var(--navy);
+}
+
+/* lista wyboru typu w formularzu artykułu – jak pozostałe pola */
+.add-article-form .form-select {
+    padding: .7rem 2.25rem .7rem .95rem;
+    font-family: var(--font);
+    color: var(--navy);
+    background-color: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+}
+
+    .add-article-form .form-select:focus {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px rgba(23, 105, 224, .18);
+    }

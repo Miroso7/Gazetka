@@ -25,10 +25,11 @@ namespace SchoolNewspaperBlazorApp.Service
             _fileService = fileService;
             _logger = logger;
         }
-        public async Task AddArticleAsync(string title, string text, string author, int fileId, IReadOnlyList<int>? galleryFileIds = null)
+        public async Task AddArticleAsync(string title, string text, string author, ArticleType type, int fileId, IReadOnlyList<int>? galleryFileIds = null)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.AddArticle);
             ValidateArticleFields(title, text);
+            ValidateType(type);
             var gallery = galleryFileIds ?? Array.Empty<int>();
             ValidateGalleryCount(gallery.Count);
             var article = new Article
@@ -37,6 +38,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 Text = text.Trim(),
                 Author = author?.Trim() ?? string.Empty,
                 PublishDate = DateTime.Now,
+                Type = type,
                 FileId = fileId,
                 // artykuł i jego galeria zapisują się razem, w jednej transakcji
                 Images = gallery.Select(galleryFileId => new ArticleImage { FileId = galleryFileId }).ToList()
@@ -46,6 +48,10 @@ namespace SchoolNewspaperBlazorApp.Service
         public async Task<List<Article>> GetAllArticlesAsync()
         {
             return await _articleRepository.GetAllArticlesAsync();
+        }
+        public async Task<List<Article>> GetArticlesByTypeAsync(ArticleType type)
+        {
+            return await _articleRepository.GetArticlesByTypeAsync(type);
         }
         public async Task<Article> GetArticleByIdAsync(int id)
         {
@@ -60,7 +66,7 @@ namespace SchoolNewspaperBlazorApp.Service
         {
             return await _articleRepository.GetArticleImagesAsync(articleId);
         }
-        public async Task UpdateArticleAsync(int id, string title, string text, string author, int fileId,
+        public async Task UpdateArticleAsync(int id, string title, string text, string author, ArticleType type, int fileId,
             IReadOnlyList<int>? addedFileIds = null, IReadOnlyList<int>? removedImageIds = null)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.EditArticle);
@@ -69,6 +75,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 throw new ArgumentException("Nieprawidłowe ID artykułu.", nameof(id));
             }
             ValidateArticleFields(title, text);
+            ValidateType(type);
 
             var added = addedFileIds ?? Array.Empty<int>();
             var removed = removedImageIds ?? Array.Empty<int>();
@@ -85,6 +92,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 Title = title.Trim(),
                 Text = text.Trim(),
                 Author = author?.Trim() ?? string.Empty,
+                Type = type,
                 FileId = fileId
             };
             var removedFileIds = await _articleRepository.UpdateArticleAsync(article, added, removed);
@@ -113,6 +121,13 @@ namespace SchoolNewspaperBlazorApp.Service
             if (string.IsNullOrWhiteSpace(text))
             {
                 throw new InvalidOperationException("Podaj treść artykułu.");
+            }
+        }
+        private static void ValidateType(ArticleType type)
+        {
+            if (!Enum.IsDefined(type))
+            {
+                throw new InvalidOperationException("Wybierz kategorię artykułu.");
             }
         }
         private static void ValidateGalleryCount(int count)

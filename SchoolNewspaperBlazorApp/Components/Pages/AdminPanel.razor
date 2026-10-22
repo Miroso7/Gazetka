@@ -172,6 +172,13 @@ else
                                 <option value="@author">@author</option>
                             }
                         </select>
+                        <select class="select" aria-label="Filtruj po kategorii" @bind="typeFilter">
+                            <option value="">Wszystkie kategorie</option>
+                            @foreach (var option in Enum.GetValues<ArticleType>())
+                            {
+                                <option value="@option">@option.Label()</option>
+                            }
+                        </select>
                         <select class="select" aria-label="Sortowanie" @bind="sort">
                             <option value="newest">Najnowsze</option>
                             <option value="oldest">Najstarsze</option>
@@ -212,6 +219,7 @@ else
                                             <h3 class="a-row__title">@a.Title</h3>
                                             <p class="a-row__text">@a.Text</p>
                                             <span class="a-row__author">@a.Author</span>
+                                            <span class="type-chip type-chip--@a.Type.CssName()">@a.Type.Label()</span>
                                         </div>
                                         <div class="a-row__actions">
                                             <a class="icon-btn" href="/article/@a.Id" target="_blank" rel="noopener"
@@ -295,6 +303,7 @@ else
 
     private string search = "";
     private string authorFilter = "";
+    private string typeFilter = "";
     private string sort = "newest";
 
     private bool authorized;
@@ -434,6 +443,10 @@ else
             if (!string.IsNullOrEmpty(authorFilter))
             {
                 q = q.Where(a => string.Equals(a.Author, authorFilter, StringComparison.OrdinalIgnoreCase));
+            }
+            if (Enum.TryParse<ArticleType>(typeFilter, out var type))
+            {
+                q = q.Where(a => a.Type == type);
             }
             return sort switch
             {

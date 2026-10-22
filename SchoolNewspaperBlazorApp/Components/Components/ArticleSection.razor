@@ -1,0 +1,26 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IArticleService articleService
+
+<PageTitle>@($"{Type.Label()} · Portal szkolny")</PageTitle>
+
+<div class="section-head">
+    <h1 class="section-title">@Type.Label()</h1>
+    <p class="section-sub">@Type.Description()</p>
+</div>
+
+<ArticleCard Articles="articles" permissions="false" ShowType="false" EmptyText="@Type.EmptyText()" />
+
+@code {
+    // zakładka z artykułami jednego typu; używana przez strony /nowosci, /wydarzenia i /ogloszenia
+    [Parameter, EditorRequired]
+    public ArticleType Type { get; set; }
+
+    private List<Article> articles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        articles = await articleService.GetArticlesByTypeAsync(Type);
+    }
+}

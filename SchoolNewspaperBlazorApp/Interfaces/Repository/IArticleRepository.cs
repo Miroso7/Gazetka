@@ -1,4 +1,5 @@
 ﻿using SchoolNewspaperBlazorApp.Data;
+using SchoolNewspaperBlazorApp.Data.Enums;
 
 namespace SchoolNewspaperBlazorApp.Interfaces.Repository
 {
@@ -6,6 +7,7 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Repository
     {
         Task AddArticleAsync(Article article);
         Task<List<Article>> GetAllArticlesAsync();
+        Task<List<Article>> GetArticlesByTypeAsync(ArticleType type);
         Task<Article> GetArticleByIdAsync(int id);
         // Aktualizuje artykuł oraz jego galerię: dodaje zdjęcia o podanych FileId i usuwa wpisy o podanych Id.
         // Zwraca FileId usuniętych zdjęć (same pliki kasuje serwis).

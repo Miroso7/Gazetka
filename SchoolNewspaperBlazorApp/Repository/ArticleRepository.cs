@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SchoolNewspaperBlazorApp.Data;
+using SchoolNewspaperBlazorApp.Data.Enums;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
 
 namespace SchoolNewspaperBlazorApp.Repository
@@ -32,6 +33,17 @@ namespace SchoolNewspaperBlazorApp.Repository
                 .ToListAsync();
         }
 
+        public async Task<List<Article>> GetArticlesByTypeAsync(ArticleType type)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.Articles
+                .AsNoTracking()
+                .Where(a => a.Type == type)
+                .OrderByDescending(a => a.Id)
+                .ToListAsync();
+        }
+
         public async Task<Article> GetArticleByIdAsync(int id)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
@@ -58,6 +70,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             existing.Title = article.Title;
             existing.Text = article.Text;
             existing.Author = article.Author;
+            existing.Type = article.Type;
             existing.FileId = article.FileId;
 
             // galeria: usuwamy tylko zdjęcia tego artykułu
