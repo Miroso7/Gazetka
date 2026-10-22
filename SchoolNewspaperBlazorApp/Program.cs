@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using SchoolNewspaperBlazorApp.Components;
@@ -39,6 +41,10 @@ namespace SchoolNewspaperBlazorApp
             builder.Services.AddScoped<IPermissionService, PermissionService>();
             builder.Services.AddScoped<NotificationService>();
 
+            // sesje logowania: pozwalają unieważnić logowanie także w otwartych obwodach Blazora
+            builder.Services.AddSingleton<ISessionRegistry, SessionRegistry>();
+            builder.Services.AddScoped<AuthenticationStateProvider, SessionRevalidatingAuthenticationStateProvider>();
+
             builder.Services.AddAuthentication(
                 CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(options =>
@@ -50,6 +56,19 @@ namespace SchoolNewspaperBlazorApp
                     options.Cookie.SameSite = SameSiteMode.Lax;
                     options.ExpireTimeSpan = TimeSpan.FromHours(1);
                     options.SlidingExpiration = true;
+                    options.Events.OnValidatePrincipal = async context =>
+                    {
+                        // cookie bez aktywnej sesji w rejestrze (wylogowane, wygasłe, sprzed restartu) jest odrzucane
+                        var sessions = context.HttpContext.RequestServices.GetRequiredService<ISessionRegistry>();
+                        var sessionId = context.Principal?.FindFirst(SessionRegistry.SessionClaimType)?.Value;
+                        if (!sessions.IsActive(sessionId))
+                        {
+                            context.RejectPrincipal();
+                            await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                            return;
+                        }
+                        sessions.Touch(sessionId);
+                    };
                 });
             builder.Services.AddAuthorization();
             builder.Services.AddCascadingAuthenticationState();
@@ -71,7 +90,13 @@ namespace SchoolNewspaperBlazorApp
             {
                 FileProvider = new PhysicalFileProvider
                 (@"C:\Users\Uczeń2026\source\repos\Gazetka\Images"),
-                RequestPath = "/Images"
+                RequestPath = "/Images",
+                OnPrepareResponse = ctx =>
+                {
+                    // wgrane pliki nigdy nie mogą działać jako dokument z własnym kodem (stare pliki HTML/SVG też)
+                    ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                    ctx.Context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; sandbox";
+                }
             });
 
             // Uwierzytelnianie musi być przed UseAntiforgery i endpointami,
@@ -94,8 +119,15 @@ namespace SchoolNewspaperBlazorApp
 
             app.MapPost("/auth/login", async (
                 HttpContext context,
-                IAuthService authService) =>
+                IAuthService authService,
+                ISessionRegistry sessions) =>
             {
+                // żądanie musi pochodzić z formularza z naszej strony (token antiforgery)
+                if (!await IsAntiforgeryValidAsync(context))
+                {
+                    return Results.Redirect("/login");
+                }
+
                 var form = await context.Request.ReadFormAsync();
                 string email = form["Email"].ToString().Trim();
                 string password = form["Password"].ToString();
@@ -106,9 +138,13 @@ namespace SchoolNewspaperBlazorApp
                     return Results.Redirect("/login?error=1");
                 }
 
+                // stara sesja z tej przeglądarki (jeśli była) przestaje być ważna
+                sessions.Revoke(context.User.FindFirst(SessionRegistry.SessionClaimType)?.Value);
+
                 var claims = new List<Claim>
                 {
-                    new Claim(ClaimTypes.Name, email)
+                    new Claim(ClaimTypes.Name, email),
+                    new Claim(SessionRegistry.SessionClaimType, sessions.Create())
                 };
                 var identity = new ClaimsIdentity(
                     claims,
@@ -122,8 +158,15 @@ namespace SchoolNewspaperBlazorApp
                 return Results.Redirect("/adminPanel?zalogowano=1");
             });
 
-            app.MapPost("/auth/logout", async (HttpContext context) =>
+            app.MapPost("/auth/logout", async (HttpContext context, ISessionRegistry sessions) =>
             {
+                if (!await IsAntiforgeryValidAsync(context))
+                {
+                    return Results.Redirect("/");
+                }
+
+                // unieważnienie sesji wylogowuje też otwarte obwody Blazora, nie tylko to cookie
+                sessions.Revoke(context.User.FindFirst(SessionRegistry.SessionClaimType)?.Value);
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 return Results.Redirect("/login");
             });
@@ -132,6 +175,20 @@ namespace SchoolNewspaperBlazorApp
                 .AddInteractiveServerRenderMode();
 
             app.Run();
+        }
+
+        private static async Task<bool> IsAntiforgeryValidAsync(HttpContext context)
+        {
+            var antiforgery = context.RequestServices.GetRequiredService<IAntiforgery>();
+            try
+            {
+                await antiforgery.ValidateRequestAsync(context);
+                return true;
+            }
+            catch (AntiforgeryValidationException)
+            {
+                return false;
+            }
         }
     }
 }

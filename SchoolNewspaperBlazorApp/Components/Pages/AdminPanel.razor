@@ -57,6 +57,7 @@ else
                     </button>
                 }
                 <form method="post" action="/auth/logout" style="display: contents;">
+                    <AntiforgeryToken />
                     <button type="submit" class="admin-nav__item">
                         @Icon("logout") <span>Wyloguj</span>
                     </button>

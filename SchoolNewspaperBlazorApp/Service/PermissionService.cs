@@ -11,11 +11,16 @@ namespace SchoolNewspaperBlazorApp.Service
     {
         private readonly IPermissionRepository _permissionRepository;
         private readonly AuthenticationStateProvider _asp;
+        private readonly ISessionRegistry _sessions;
 
-        public PermissionService(IPermissionRepository permissionRepository, AuthenticationStateProvider asp)
+        public PermissionService(
+            IPermissionRepository permissionRepository,
+            AuthenticationStateProvider asp,
+            ISessionRegistry sessions)
         {
             _permissionRepository = permissionRepository;
             _asp = asp;
+            _sessions = sessions;
         }
 
         // Uprawnienia zarezerwowane dla konta master – z panelu nie można ich nadać nikomu.
@@ -34,7 +39,18 @@ namespace SchoolNewspaperBlazorApp.Service
         private async Task<ClaimsPrincipal> GetPrincipalAsync()
         {
             var authState = await _asp.GetAuthenticationStateAsync();
-            return authState.User;
+            var user = authState.User;
+
+            // sesja wygasła albo użytkownik został wylogowany: traktujemy go jak niezalogowanego,
+            // nawet jeśli obwód Blazora nadal trzyma stare uwierzytelnienie
+            var sessionId = user.FindFirst(SessionRegistry.SessionClaimType)?.Value;
+            if (!_sessions.IsActive(sessionId))
+            {
+                return new ClaimsPrincipal(new ClaimsIdentity());
+            }
+
+            _sessions.Touch(sessionId);
+            return user;
         }
 
         public async Task<bool> HasPermissionAsync(EnumPermissions permission)

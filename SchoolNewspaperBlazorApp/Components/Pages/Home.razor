@@ -16,6 +16,7 @@
         <AuthorizeView>
             <Authorized>
                 <form method="post" action="/auth/logout" style="display: contents;">
+                    <AntiforgeryToken />
                     <button type="submit" class="btn btn-ghost">Wyloguj się</button>
                 </form>
             </Authorized>

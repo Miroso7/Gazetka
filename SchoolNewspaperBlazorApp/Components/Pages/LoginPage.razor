@@ -45,6 +45,7 @@
         @* Zwykły formularz HTML: cookie logowania musi zostać ustawione przez żądanie HTTP
            (endpoint /auth/login w Program.cs), a nie przez połączenie SignalR. *@
         <form method="post" action="/auth/login" class="auth-form">
+            <AntiforgeryToken />
 
             <div class="auth-field">
                 <label class="auth-field__label" for="email">Adres e-mail</label>

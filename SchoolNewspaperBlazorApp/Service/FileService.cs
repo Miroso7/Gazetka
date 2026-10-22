@@ -32,21 +32,27 @@ namespace SchoolNewspaperBlazorApp.Service
             {
                 throw new UnauthorizedAccessException("Brak uprawnienia do dodawania zdjęć.");
             }
+            // wczytujemy plik do pamięci i rozpoznajemy go po zawartości, a nie po nazwie ani typie od przeglądarki
+            using var stream = file.OpenReadStream(5 * 1024 * 1024);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            byte[] bytes = memoryStream.ToArray();
+
+            // rozszerzenie wybiera serwer (tylko zdjęcia), więc nie da się wgrać np. HTML czy SVG ze skryptem
+            string? extension = DetectImageExtension(bytes);
+            if (extension is null)
+            {
+                throw new InvalidOperationException("Dozwolone są tylko zdjęcia w formacie JPG, PNG, GIF lub WebP.");
+            }
+
             //Tworzenie folderu
             Directory.CreateDirectory(uploadPath);
-            //Pobieranie extension z pliku czyli np .png
-            string extension = Path.GetExtension(file.Name);
             //Generowanie nazwy + extension np. plik.png
             string fileName = $"{Guid.NewGuid()}{extension}";
             // łaczenie uploadPath i fileName C:\Users\Praktyka\source\repos\SchoolNewspaperBlazorApp\Images\plik.png
             string fullPath = Path.Combine(uploadPath, fileName);
 
-            using var stream = file.OpenReadStream(5 * 1024 * 1024);
-            using var fileStream = new FileStream(
-                fullPath, //pelny link odnosnika
-                FileMode.Create //ustawienie tworzenia
-                );
-            await stream.CopyToAsync(fileStream);
+            await File.WriteAllBytesAsync(fullPath, bytes);
             var id = await _fileRepository.GetLastFileId();
             var mediaFile = new MediaFile
             {
@@ -59,6 +65,30 @@ namespace SchoolNewspaperBlazorApp.Service
             return id;
 
         }
+        // Rozpoznaje format po początku pliku (JPG, PNG, GIF, WebP); dla innych plików zwraca null.
+        private static string? DetectImageExtension(byte[] bytes)
+        {
+            ReadOnlySpan<byte> data = bytes;
+
+            if (data.StartsWith(new byte[] { 0xFF, 0xD8, 0xFF }))
+            {
+                return ".jpg";
+            }
+            if (data.StartsWith(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }))
+            {
+                return ".png";
+            }
+            if (data.StartsWith("GIF87a"u8) || data.StartsWith("GIF89a"u8))
+            {
+                return ".gif";
+            }
+            if (data.Length >= 12 && data[..4].SequenceEqual("RIFF"u8) && data.Slice(8, 4).SequenceEqual("WEBP"u8))
+            {
+                return ".webp";
+            }
+            return null;
+        }
+
         public Task<Dictionary<int, string>> GetFileNamesByIdsAsync(IEnumerable<int> ids)
             => _fileRepository.GetFileNamesByIdsAsync(ids);
 

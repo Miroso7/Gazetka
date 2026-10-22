@@ -49,6 +49,7 @@
                     <AuthorizeView>
                         <Authorized>
                             <form method="post" action="/auth/logout" class="site-nav__logout">
+                                <AntiforgeryToken />
                                 <button type="submit" class="nav-link nav-link--cta">Wyloguj</button>
                             </form>
                         </Authorized>
@@ -98,6 +99,7 @@
                     <Authorized>
                         <a href="/adminPanel">Admin Panel</a>
                         <form method="post" action="/auth/logout" class="site-footer__form">
+                            <AntiforgeryToken />
                             <button type="submit" class="site-footer__link">Wyloguj</button>
                         </form>
                     </Authorized>
