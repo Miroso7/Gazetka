@@ -40,7 +40,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             return article;
         }
 
-        public async Task UpdateArticleAsync(Article article)
+        public async Task<List<int>> UpdateArticleAsync(Article article, IReadOnlyCollection<int> addedFileIds, IReadOnlyCollection<int> removedImageIds)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -56,10 +56,48 @@ namespace SchoolNewspaperBlazorApp.Repository
             existing.Author = article.Author;
             existing.FileId = article.FileId;
 
+            // galeria: usuwamy tylko zdjęcia tego artykułu
+            var removedFileIds = new List<int>();
+            var removedIds = removedImageIds.ToList();
+            if (removedIds.Count > 0)
+            {
+                var toRemove = await context.ArticleImages
+                    .Where(i => i.ArticleId == article.Id && removedIds.Contains(i.Id))
+                    .ToListAsync();
+                removedFileIds.AddRange(toRemove.Select(i => i.FileId));
+                context.ArticleImages.RemoveRange(toRemove);
+            }
+
+            foreach (var fileId in addedFileIds)
+            {
+                context.ArticleImages.Add(new ArticleImage { ArticleId = article.Id, FileId = fileId });
+            }
+
             await context.SaveChangesAsync();
+            return removedFileIds;
         }
 
-        public async Task<int?> RemoveArticleByIdAsync(int id)
+        public async Task<List<ArticleImageDto>> GetArticleImagesAsync(int articleId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.ArticleImages
+                .AsNoTracking()
+                .Where(i => i.ArticleId == articleId)
+                .Join(context.Files, i => i.FileId, f => f.Id,
+                    (i, f) => new ArticleImageDto { Id = i.Id, FileId = i.FileId, FileName = f.FileName })
+                .OrderBy(x => x.Id)
+                .ToListAsync();
+        }
+
+        public async Task<int> CountArticleImagesAsync(int articleId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.ArticleImages.CountAsync(i => i.ArticleId == articleId);
+        }
+
+        public async Task<List<int>> RemoveArticleByIdAsync(int id)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -69,17 +107,27 @@ namespace SchoolNewspaperBlazorApp.Repository
                 throw new Exception($"Article with ID {id} not found.");
             }
 
-            var fileId = article.FileId;
+            var coverFileId = article.FileId;
+            var galleryFileIds = await context.ArticleImages
+                .Where(i => i.ArticleId == id)
+                .Select(i => i.FileId)
+                .ToListAsync();
 
+            // wpisy o zdjęciach z galerii usuwa baza (kaskadowo)
             context.Articles.Remove(article);
             await context.SaveChangesAsync();
 
-            // zdjęcie do skasowania tylko wtedy, gdy nie używa go żaden inny artykuł
-            if (fileId <= 0 || await context.Articles.AnyAsync(a => a.FileId == fileId))
+            // zdjęcie do skasowania tylko wtedy, gdy nie używa go już żaden inny artykuł ani galeria
+            var orphaned = new List<int>();
+            foreach (var fileId in galleryFileIds.Append(coverFileId).Distinct())
             {
-                return null;
+                if (fileId <= 0) continue;
+                if (await context.Articles.AnyAsync(a => a.FileId == fileId)) continue;
+                if (await context.ArticleImages.AnyAsync(i => i.FileId == fileId)) continue;
+
+                orphaned.Add(fileId);
             }
-            return fileId;
+            return orphaned;
         }
     }
 }

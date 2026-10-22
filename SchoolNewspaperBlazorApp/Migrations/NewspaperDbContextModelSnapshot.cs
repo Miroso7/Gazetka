@@ -53,6 +53,27 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.ToTable("Articles");
                 });
 
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.ArticleImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FileId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId");
+
+                    b.ToTable("ArticleImages");
+                });
+
             modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.MediaFile", b =>
                 {
                     b.Property<int>("Id")
@@ -180,6 +201,15 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.ToTable("UserPermissions");
                 });
 
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.ArticleImage", b =>
+                {
+                    b.HasOne("SchoolNewspaperBlazorApp.Data.Article", null)
+                        .WithMany("Images")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.UserPermission", b =>
                 {
                     b.HasOne("SchoolNewspaperBlazorApp.Data.Permission", "Permission")
@@ -197,6 +227,11 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.Navigation("Permission");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Article", b =>
+                {
+                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.User", b =>

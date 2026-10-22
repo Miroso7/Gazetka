@@ -1,0 +1,183 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+
+@if (Images.Count > 0)
+{
+    <section class="ap-gallery" aria-labelledby="ap-gallery-title">
+        <header class="ap-gallery__head">
+            <h2 class="ap-gallery__title" id="ap-gallery-title">
+                Galeria <span class="ap-gallery__count">@Images.Count</span>
+            </h2>
+            <p class="ap-gallery__hint">Kliknij zdjęcie, aby je powiększyć</p>
+        </header>
+
+        <ul class="@($"ap-gallery__grid ap-gallery__grid--{GridSize}")">
+            @for (var i = 0; i < Images.Count; i++)
+            {
+                var index = i;
+                <li @key="Images[index].Id" class="ap-gallery__cell">
+                    <button type="button" class="ap-gallery__item" @onclick="() => Open(index)"
+                            aria-label="Powiększ zdjęcie @(index + 1) z @Images.Count">
+                        <img src="@(Images[index].Url)" alt="@Title – zdjęcie @(index + 1)" loading="lazy" decoding="async" />
+                        <span class="ap-gallery__zoom" aria-hidden="true">
+                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3M11 8v6M8 11h6" /></svg>
+                        </span>
+                    </button>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@if (current is int shown && shown >= 0 && shown < Images.Count)
+{
+    <div class="lightbox" role="dialog" aria-modal="true" aria-label="Podgląd zdjęcia"
+         tabindex="-1" @ref="overlay"
+         @onkeydown="OnKeyDown"
+         @onclick="Close"
+         @ontouchstart="OnTouchStart"
+         @ontouchend="OnTouchEnd">
+
+        <header class="lightbox__bar">
+            <span class="lightbox__title">@Title</span>
+            <span class="lightbox__counter" aria-live="polite">@(shown + 1) / @Images.Count</span>
+            <button type="button" class="lightbox__btn lightbox__close" @onclick="Close" @onclick:stopPropagation
+                    aria-label="Zamknij podgląd" title="Zamknij (Esc)">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+        </header>
+
+        <div class="lightbox__stage">
+            <img @key="Images[shown].Id" class="lightbox__img" src="@(Images[shown].Url)"
+                 alt="@Title – zdjęcie @(shown + 1) z @Images.Count" decoding="async"
+                 @onclick:stopPropagation />
+
+            @if (Images.Count > 1)
+            {
+                <button type="button" class="lightbox__btn lightbox__nav lightbox__nav--prev" @onclick="Previous" @onclick:stopPropagation
+                        aria-label="Poprzednie zdjęcie" title="Poprzednie (←)">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <button type="button" class="lightbox__btn lightbox__nav lightbox__nav--next" @onclick="Next" @onclick:stopPropagation
+                        aria-label="Następne zdjęcie" title="Następne (→)">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+            }
+        </div>
+
+        @if (Images.Count > 1)
+        {
+            <nav class="lightbox__thumbs" aria-label="Miniatury zdjęć" @onclick:stopPropagation>
+                @for (var i = 0; i < Images.Count; i++)
+                {
+                    var index = i;
+                    <button type="button" @key="Images[index].Id"
+                            class="lightbox__thumb @(index == shown ? "is-active" : null)"
+                            @onclick="() => Show(index)"
+                            aria-label="Pokaż zdjęcie @(index + 1)"
+                            aria-current="@(index == shown ? "true" : null)">
+                        <img src="@(Images[index].Url)" alt="" loading="lazy" decoding="async" />
+                    </button>
+                }
+            </nav>
+
+            @* sąsiednie zdjęcia ładują się z wyprzedzeniem, żeby przejście było płynne *@
+            <img class="lightbox__preload" src="@(Images[Wrap(shown + 1)].Url)" alt="" aria-hidden="true" />
+            <img class="lightbox__preload" src="@(Images[Wrap(shown - 1)].Url)" alt="" aria-hidden="true" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public List<ArticleImageDto> Images { get; set; } = new();
+    [Parameter]
+    public string Title { get; set; } = "";
+
+    private int? current;
+    private bool focusPending;
+    private ElementReference overlay;
+    private double? touchStartX;
+
+    // minimalny przesuw palcem (w px), od którego uznajemy gest za przewinięcie zdjęcia
+    private const double SwipeThreshold = 50;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // fokus na podglądzie, żeby klawisze Esc i strzałki działały od razu po otwarciu
+        if (!focusPending) return;
+        focusPending = false;
+
+        try { await overlay.FocusAsync(); }
+        catch (Exception) { }
+    }
+
+    private void Open(int index)
+    {
+        current = index;
+        focusPending = true;
+    }
+
+    private void Close() => current = null;
+
+    private void Show(int index)
+    {
+        if (index >= 0 && index < Images.Count) current = index;
+    }
+
+    // rozmiar siatki wpływa na układ: 1 duże zdjęcie, 2 obok siebie albo 3 kolumny
+    private string GridSize => Images.Count switch { 1 => "one", 2 => "two", _ => "many" };
+
+    private void Next() => Move(1);
+
+    private void Previous() => Move(-1);
+
+    private void Move(int step)
+    {
+        if (current is null || Images.Count == 0) return;
+        current = Wrap(current.Value + step);
+    }
+
+    private int Wrap(int index)
+    {
+        var count = Images.Count;
+        return ((index % count) + count) % count;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape":
+                Close();
+                break;
+            case "ArrowLeft":
+                Previous();
+                break;
+            case "ArrowRight":
+                Next();
+                break;
+            case "Home":
+                Show(0);
+                break;
+            case "End":
+                Show(Images.Count - 1);
+                break;
+        }
+    }
+
+    private void OnTouchStart(TouchEventArgs e)
+    {
+        touchStartX = e.ChangedTouches.Length > 0 ? e.ChangedTouches[0].ClientX : null;
+    }
+
+    private void OnTouchEnd(TouchEventArgs e)
+    {
+        if (touchStartX is null || e.ChangedTouches.Length == 0) return;
+
+        var delta = e.ChangedTouches[0].ClientX - touchStartX.Value;
+        touchStartX = null;
+
+        if (Images.Count < 2 || Math.Abs(delta) < SwipeThreshold) return;
+        if (delta < 0) Next(); else Previous();
+    }
+}

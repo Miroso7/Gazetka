@@ -11,6 +11,7 @@ namespace SchoolNewspaperBlazorApp.Data
         public DbSet<Article> Articles { get; set; }
         public DbSet<User> Users => Set<User>();
         public DbSet<MediaFile> Files { get; set; }
+        public DbSet<ArticleImage> ArticleImages => Set<ArticleImage>();
         public DbSet<Permission> Permissions => Set<Permission>();
         public DbSet<UserPermission> UserPermissions => Set<UserPermission>();
 
@@ -19,6 +20,17 @@ namespace SchoolNewspaperBlazorApp.Data
             mb.Entity<MediaFile>()
                 .Property(x => x.Id)
                 .ValueGeneratedNever();
+
+            // Galeria: usunięcie artykułu usuwa też wpisy o jego zdjęciach (same pliki kasuje serwis).
+            mb.Entity<ArticleImage>(e =>
+            {
+                e.HasIndex(x => x.ArticleId);
+
+                e.HasOne<Article>()
+                    .WithMany(a => a.Images)
+                    .HasForeignKey(x => x.ArticleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
             // Słownik uprawnień: Id = numer z enuma, dane dodawane przez migrację.
             mb.Entity<Permission>(e =>

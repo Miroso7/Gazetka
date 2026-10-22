@@ -2933,3 +2933,527 @@ main.container {
         display: none !important;
     }
 }
+
+/* =====================================================================
+   Galeria zdjęć w artykule
+   ===================================================================== */
+
+/* główne zdjęcie artykułu ma stałe proporcje, a nie zależy od rozmiaru pliku */
+.ap-figure__img {
+    aspect-ratio: 16 / 9;
+}
+
+/* ---------- Siatka na stronie artykułu ---------- */
+.ap-gallery {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--line);
+}
+
+.ap-gallery__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .35rem 1rem;
+    margin-bottom: 1.1rem;
+}
+
+.ap-gallery__title {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: var(--navy);
+}
+
+.ap-gallery__count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.8rem;
+    height: 1.8rem;
+    padding: 0 .55rem;
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--blue-dark);
+    background: var(--blue-soft);
+    border-radius: 999px;
+}
+
+.ap-gallery__hint {
+    margin: 0;
+    font-size: .88rem;
+    color: var(--muted);
+}
+
+/* wszystkie kafelki mają te same proporcje, a zdjęcie je wypełnia (przycięte, nie rozciągnięte) */
+.ap-gallery__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ap-gallery__grid--one {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.ap-gallery__grid--two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ap-gallery__cell {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    min-width: 0;
+}
+
+.ap-gallery__grid--one .ap-gallery__cell {
+    aspect-ratio: 16 / 9;
+}
+
+.ap-gallery__item {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+    background: var(--blue-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    cursor: zoom-in;
+    transition: box-shadow .25s var(--ease), transform .25s var(--ease);
+}
+
+    .ap-gallery__item img {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform .45s var(--ease);
+    }
+
+    /* delikatne przyciemnienie od dołu, na którym widać ikonę powiększenia */
+    .ap-gallery__item::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(11, 31, 58, .45), rgba(11, 31, 58, 0) 55%);
+        opacity: 0;
+        transition: opacity .25s var(--ease);
+        pointer-events: none;
+    }
+
+    .ap-gallery__item:hover,
+    .ap-gallery__item:focus-visible {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+        .ap-gallery__item:hover img,
+        .ap-gallery__item:focus-visible img {
+            transform: scale(1.06);
+        }
+
+        .ap-gallery__item:hover::after,
+        .ap-gallery__item:focus-visible::after {
+            opacity: 1;
+        }
+
+    .ap-gallery__item:focus-visible {
+        outline: 3px solid var(--blue);
+        outline-offset: 2px;
+    }
+
+.ap-gallery__zoom {
+    position: absolute;
+    right: .7rem;
+    bottom: .7rem;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    color: var(--blue);
+    background: var(--white);
+    border-radius: 50%;
+    box-shadow: var(--shadow-sm);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity .25s var(--ease), transform .25s var(--ease);
+}
+
+.ap-gallery__item:hover .ap-gallery__zoom,
+.ap-gallery__item:focus-visible .ap-gallery__zoom {
+    opacity: 1;
+    transform: none;
+}
+
+/* na ekranach dotykowych nie ma najechania, więc ikona jest zawsze widoczna */
+@media (hover: none) {
+    .ap-gallery__zoom {
+        opacity: 1;
+        transform: none;
+    }
+
+    .ap-gallery__hint {
+        display: none;
+    }
+}
+
+/* ---------- Duży podgląd ---------- */
+body:has(.lightbox) {
+    overflow: hidden; /* tło nie przewija się pod podglądem */
+}
+
+.lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    color: var(--white);
+    background: rgba(6, 15, 30, .95);
+    outline: none;
+    animation: lightbox-fade .2s var(--ease);
+}
+
+.lightbox__bar {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: max(.9rem, env(safe-area-inset-top)) 1rem .6rem 1.25rem;
+}
+
+.lightbox__title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 1rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lightbox__counter {
+    padding: .25rem .8rem;
+    font-size: .88rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    background: rgba(255, 255, 255, .12);
+    border-radius: 999px;
+}
+
+/* stała „ramka” na zdjęcie: każde zdjęcie ma to samo pole, więc przyciski i układ nie skaczą */
+.lightbox__stage {
+    position: relative;
+    min-height: 0;
+}
+
+.lightbox__img {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 4.75rem;
+    width: calc(100% - 9.5rem);
+    height: 100%;
+    object-fit: contain;
+    animation: lightbox-pop .25s var(--ease);
+}
+
+.lightbox__preload {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.lightbox__btn {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 2.9rem;
+    height: 2.9rem;
+    padding: 0;
+    color: var(--white);
+    background: rgba(255, 255, 255, .14);
+    border: 1px solid rgba(255, 255, 255, .25);
+    border-radius: 50%;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    transition: background .2s var(--ease), transform .2s var(--ease);
+}
+
+    .lightbox__btn:hover {
+        background: rgba(255, 255, 255, .3);
+    }
+
+    .lightbox__btn:focus-visible {
+        outline: 3px solid var(--white);
+        outline-offset: 2px;
+    }
+
+.lightbox__nav {
+    position: absolute;
+    top: 50%;
+    margin-top: -1.45rem;
+}
+
+    .lightbox__nav:hover {
+        transform: scale(1.08);
+    }
+
+.lightbox__nav--prev {
+    left: 1rem;
+}
+
+.lightbox__nav--next {
+    right: 1rem;
+}
+
+/* miniatury: aktywna wyróżniona, reszta przygaszona; przy wielu zdjęciach pasek się przewija */
+.lightbox__thumbs {
+    display: flex;
+    gap: .5rem;
+    padding: .75rem 1rem max(1rem, env(safe-area-inset-bottom));
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+    .lightbox__thumbs > :first-child {
+        margin-left: auto;
+    }
+
+    .lightbox__thumbs > :last-child {
+        margin-right: auto;
+    }
+
+.lightbox__thumb {
+    flex: none;
+    width: 4.5rem;
+    height: 3.4rem;
+    padding: 0;
+    overflow: hidden;
+    background: var(--navy);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    opacity: .5;
+    cursor: pointer;
+    transition: opacity .2s var(--ease), border-color .2s var(--ease), transform .2s var(--ease);
+}
+
+    .lightbox__thumb img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .lightbox__thumb:hover {
+        opacity: .85;
+    }
+
+    .lightbox__thumb:focus-visible {
+        outline: 3px solid var(--white);
+        outline-offset: 2px;
+    }
+
+    .lightbox__thumb.is-active {
+        opacity: 1;
+        border-color: var(--white);
+        transform: translateY(-2px);
+    }
+
+@keyframes lightbox-fade {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes lightbox-pop {
+    from {
+        opacity: 0;
+        transform: scale(.985);
+    }
+}
+
+/* ---------- Galeria w formularzu artykułu ---------- */
+.gallery-edit {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+    gap: .65rem;
+    margin: 0 0 1rem;
+    padding: 0;
+    list-style: none;
+}
+
+.gallery-edit__item {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: var(--blue-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+}
+
+    .gallery-edit__item img {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+.gallery-edit__remove {
+    position: absolute;
+    top: .35rem;
+    right: .35rem;
+    display: grid;
+    place-items: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    padding: 0;
+    color: var(--white);
+    background: rgba(11, 31, 58, .78);
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background .2s var(--ease), transform .2s var(--ease);
+}
+
+    .gallery-edit__remove:hover,
+    .gallery-edit__remove:focus-visible {
+        background: var(--danger);
+        transform: scale(1.08);
+    }
+
+.gallery-edit__badge {
+    position: absolute;
+    left: .35rem;
+    bottom: .35rem;
+    padding: .1rem .55rem;
+    font-size: .7rem;
+    font-weight: 700;
+    color: var(--white);
+    background: var(--blue);
+    border-radius: 999px;
+}
+
+/* pole wyboru plików jako obszar z przerywaną ramką */
+.add-article-form .gallery-edit__input {
+    padding: 1.1rem 1rem;
+    background: var(--blue-soft);
+    border: 2px dashed rgba(23, 105, 224, .45);
+    cursor: pointer;
+}
+
+    .add-article-form .gallery-edit__input:hover:not(:disabled) {
+        background: var(--white);
+        border-color: var(--blue);
+    }
+
+    .add-article-form .gallery-edit__input:disabled {
+        cursor: not-allowed;
+        opacity: .6;
+    }
+
+.gallery-edit__input::file-selector-button {
+    margin-right: .9rem;
+    padding: .45rem .95rem;
+    font-family: var(--font);
+    font-weight: 600;
+    color: var(--white);
+    background: var(--blue);
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.gallery-edit__hint {
+    font-size: .82rem;
+}
+
+/* ---------- Galeria: tablety i telefony ---------- */
+@media (max-width: 767.98px) {
+    .lightbox__img {
+        left: 4rem;
+        width: calc(100% - 8rem);
+    }
+
+    .lightbox__nav--prev {
+        left: .5rem;
+    }
+
+    .lightbox__nav--next {
+        right: .5rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .ap-gallery__grid--many,
+    .ap-gallery__grid--two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .5rem;
+    }
+
+    .ap-gallery__item {
+        border-radius: var(--radius-sm);
+    }
+
+    /* zdjęcie na całą szerokość ekranu, strzałki na dole (zdjęcia można też przewijać palcem) */
+    .lightbox__img {
+        left: 0;
+        width: 100%;
+    }
+
+    .lightbox__nav {
+        top: auto;
+        bottom: max(.75rem, env(safe-area-inset-bottom));
+        margin-top: 0;
+    }
+
+    .lightbox__thumbs {
+        display: none;
+    }
+
+    .gallery-edit {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lightbox,
+    .lightbox__img {
+        animation: none;
+    }
+
+    .ap-gallery__item,
+    .ap-gallery__item img,
+    .ap-gallery__item::after,
+    .ap-gallery__zoom,
+    .lightbox__btn,
+    .lightbox__thumb {
+        transition: none;
+    }
+}
+
+/* ---------- Druk: bez podglądu ---------- */
+@media print {
+    .lightbox {
+        display: none !important;
+    }
+}

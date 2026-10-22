@@ -25,17 +25,21 @@ namespace SchoolNewspaperBlazorApp.Service
             _fileService = fileService;
             _logger = logger;
         }
-        public async Task AddArticleAsync(string title, string text, string author, int fileId)
+        public async Task AddArticleAsync(string title, string text, string author, int fileId, IReadOnlyList<int>? galleryFileIds = null)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.AddArticle);
             ValidateArticleFields(title, text);
+            var gallery = galleryFileIds ?? Array.Empty<int>();
+            ValidateGalleryCount(gallery.Count);
             var article = new Article
             {
                 Title = title.Trim(),
                 Text = text.Trim(),
                 Author = author?.Trim() ?? string.Empty,
                 PublishDate = DateTime.Now,
-                FileId = fileId
+                FileId = fileId,
+                // artykuł i jego galeria zapisują się razem, w jednej transakcji
+                Images = gallery.Select(galleryFileId => new ArticleImage { FileId = galleryFileId }).ToList()
             };
             await _articleRepository.AddArticleAsync(article);
         }
@@ -52,7 +56,12 @@ namespace SchoolNewspaperBlazorApp.Service
             }
             return article;
         }
-        public async Task UpdateArticleAsync(int id, string title, string text, string author, int fileId)
+        public async Task<List<ArticleImageDto>> GetArticleImagesAsync(int articleId)
+        {
+            return await _articleRepository.GetArticleImagesAsync(articleId);
+        }
+        public async Task UpdateArticleAsync(int id, string title, string text, string author, int fileId,
+            IReadOnlyList<int>? addedFileIds = null, IReadOnlyList<int>? removedImageIds = null)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.EditArticle);
             if (id <= 0)
@@ -60,6 +69,14 @@ namespace SchoolNewspaperBlazorApp.Service
                 throw new ArgumentException("Nieprawidłowe ID artykułu.", nameof(id));
             }
             ValidateArticleFields(title, text);
+
+            var added = addedFileIds ?? Array.Empty<int>();
+            var removed = removedImageIds ?? Array.Empty<int>();
+            if (added.Count > 0)
+            {
+                var current = await _articleRepository.CountArticleImagesAsync(id);
+                ValidateGalleryCount(Math.Max(0, current - removed.Count) + added.Count);
+            }
 
             // data publikacji zostaje bez zmian (repozytorium aktualizuje tylko pola poniżej)
             var article = new Article
@@ -70,7 +87,20 @@ namespace SchoolNewspaperBlazorApp.Service
                 Author = author?.Trim() ?? string.Empty,
                 FileId = fileId
             };
-            await _articleRepository.UpdateArticleAsync(article);
+            var removedFileIds = await _articleRepository.UpdateArticleAsync(article, added, removed);
+
+            // wpisy w bazie są już zaktualizowane, więc błąd przy kasowaniu plików nie może pokazać błędu
+            if (removedFileIds.Count > 0)
+            {
+                try
+                {
+                    await _fileService.DeleteFilesAsync(removedFileIds);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Nie udało się usunąć zdjęć galerii artykułu {ArticleId}.", id);
+                }
+            }
         }
         // Tytuł i treść są wymagane, autor jest opcjonalny.
         private static void ValidateArticleFields(string? title, string? text)
@@ -85,22 +115,32 @@ namespace SchoolNewspaperBlazorApp.Service
                 throw new InvalidOperationException("Podaj treść artykułu.");
             }
         }
+        private static void ValidateGalleryCount(int count)
+        {
+            if (count > IArticleService.MaxGalleryImages)
+            {
+                throw new InvalidOperationException(
+                    $"Galeria może mieć maksymalnie {IArticleService.MaxGalleryImages} zdjęć.");
+            }
+        }
         public async Task RemoveArticleByIdAsync(int id)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.DeleteArticle);
             if (id <= 0) return;
 
-            var orphanedFileId = await _articleRepository.RemoveArticleByIdAsync(id);
-            if (orphanedFileId is null) return;
+            var orphanedFileIds = await _articleRepository.RemoveArticleByIdAsync(id);
 
             // artykuł jest już usunięty, więc błąd przy kasowaniu zdjęcia nie może go "cofnąć" ani pokazać błędu
-            try
+            foreach (var orphanedFileId in orphanedFileIds)
             {
-                await _fileService.DeleteFileAsync(orphanedFileId.Value);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Nie udało się usunąć zdjęcia (FileId {FileId}) po usunięciu artykułu {ArticleId}.", orphanedFileId, id);
+                try
+                {
+                    await _fileService.DeleteFileAsync(orphanedFileId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Nie udało się usunąć zdjęcia (FileId {FileId}) po usunięciu artykułu {ArticleId}.", orphanedFileId, id);
+                }
             }
         }
     }

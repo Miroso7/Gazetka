@@ -24,7 +24,7 @@ namespace SchoolNewspaperBlazorApp.Service
             byte[] bytes = memoryStream.ToArray();
             return $"data:{file.ContentType};base64,{Convert.ToBase64String(bytes)}";
         }
-        public async Task<int> UploadImage(IBrowserFile file)
+        private async Task EnsureCanUploadAsync()
         {
             // zdjęcia wgrywa się tylko przy dodawaniu albo edycji artykułu
             if (!await _permissionService.HasPermissionAsync(EnumPermissions.AddArticle)
@@ -32,12 +32,51 @@ namespace SchoolNewspaperBlazorApp.Service
             {
                 throw new UnauthorizedAccessException("Brak uprawnienia do dodawania zdjęć.");
             }
+        }
+        public async Task<int> UploadImage(IBrowserFile file)
+        {
+            await EnsureCanUploadAsync();
             // wczytujemy plik do pamięci i rozpoznajemy go po zawartości, a nie po nazwie ani typie od przeglądarki
             using var stream = file.OpenReadStream(5 * 1024 * 1024);
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream);
             byte[] bytes = memoryStream.ToArray();
 
+            return await StoreImageAsync(bytes);
+        }
+        public async Task<List<int>> UploadImages(IReadOnlyList<byte[]> images)
+        {
+            await EnsureCanUploadAsync();
+
+            // najpierw sprawdzamy wszystkie zdjęcia, żeby przy błędzie nic nie trafiło na dysk
+            if (images.Any(image => !IsSupportedImage(image)))
+            {
+                throw new InvalidOperationException("Dozwolone są tylko zdjęcia w formacie JPG, PNG, GIF lub WebP.");
+            }
+
+            var ids = new List<int>();
+            try
+            {
+                foreach (var image in images)
+                {
+                    ids.Add(await StoreImageAsync(image));
+                }
+            }
+            catch (Exception)
+            {
+                // nie zostawiamy po sobie części wgranych zdjęć
+                foreach (var id in ids)
+                {
+                    try { await RemoveStoredFileAsync(id); } catch (Exception) { }
+                }
+                throw;
+            }
+            return ids;
+        }
+        public bool IsSupportedImage(byte[] bytes) => DetectImageExtension(bytes) is not null;
+
+        private async Task<int> StoreImageAsync(byte[] bytes)
+        {
             // rozszerzenie wybiera serwer (tylko zdjęcia), więc nie da się wgrać np. HTML czy SVG ze skryptem
             string? extension = DetectImageExtension(bytes);
             if (extension is null)
@@ -95,6 +134,25 @@ namespace SchoolNewspaperBlazorApp.Service
         public async Task DeleteFileAsync(int id)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.DeleteArticle);
+            await RemoveStoredFileAsync(id);
+        }
+
+        public async Task DeleteFilesAsync(IEnumerable<int> ids)
+        {
+            if (!await _permissionService.HasPermissionAsync(EnumPermissions.EditArticle)
+                && !await _permissionService.HasPermissionAsync(EnumPermissions.DeleteArticle))
+            {
+                throw new UnauthorizedAccessException("Brak uprawnienia do usuwania zdjęć.");
+            }
+
+            foreach (var id in ids.Distinct())
+            {
+                await RemoveStoredFileAsync(id);
+            }
+        }
+
+        private async Task RemoveStoredFileAsync(int id)
+        {
             if (id <= 0) return;
 
             var fileName = await _fileRepository.DeleteFileAsync(id);
