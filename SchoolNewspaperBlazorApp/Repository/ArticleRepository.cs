@@ -25,7 +25,11 @@ namespace SchoolNewspaperBlazorApp.Repository
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
-            return await context.Articles.ToListAsync();
+            // najnowsze artykuły na górze (spójnie z panelem admina i odznaką „Nowe”)
+            return await context.Articles
+                .AsNoTracking()
+                .OrderByDescending(a => a.Id)
+                .ToListAsync();
         }
 
         public async Task<Article> GetArticleByIdAsync(int id)
