@@ -152,21 +152,9 @@ namespace SchoolNewspaperBlazorApp.Service
             await _permissionService.RequirePermissionAsync(EnumPermissions.DeleteArticle);
             if (id <= 0) return;
 
-            var orphanedFileIds = await _articleRepository.RemoveArticleByIdAsync(id);
-            _logger.LogInformation("Usunięto artykuł {ArticleId} (zdjęcia do skasowania: {Orphaned}).", id, orphanedFileIds.Count);
-
-            // artykuł jest już usunięty, więc błąd przy kasowaniu zdjęcia nie może go "cofnąć" ani pokazać błędu
-            foreach (var orphanedFileId in orphanedFileIds)
-            {
-                try
-                {
-                    await _fileService.DeleteFileAsync(orphanedFileId);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Nie udało się usunąć zdjęcia (FileId {FileId}) po usunięciu artykułu {ArticleId}.", orphanedFileId, id);
-                }
-            }
+            // soft delete: artykuł znika z serwisu, ale jego zdjęcia zostają (przywrócenie = zmiana flagi w bazie)
+            await _articleRepository.RemoveArticleByIdAsync(id);
+            _logger.LogInformation("Usunięto artykuł {ArticleId} (soft delete).", id);
         }
     }
 }

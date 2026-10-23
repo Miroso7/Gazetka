@@ -80,7 +80,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             existing.Details = article.Details;
             existing.FileId = article.FileId;
 
-            // galeria: usuwamy tylko zdjęcia tego artykułu
+            // galeria: usuwamy (soft delete) tylko zdjęcia tego artykułu
             var removedFileIds = new List<int>();
             var removedIds = removedImageIds.ToList();
             if (removedIds.Count > 0)
@@ -123,7 +123,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             return await context.ArticleImages.CountAsync(i => i.ArticleId == articleId);
         }
 
-        public async Task<List<int>> RemoveArticleByIdAsync(int id)
+        public async Task RemoveArticleByIdAsync(int id)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -134,28 +134,11 @@ namespace SchoolNewspaperBlazorApp.Repository
                 throw new Exception($"Article with ID {id} not found.");
             }
 
-            var coverFileId = article.FileId;
-            var galleryFileIds = await context.ArticleImages
-                .Where(i => i.ArticleId == id)
-                .Select(i => i.FileId)
-                .ToListAsync();
-
-            // wpisy o zdjęciach z galerii usuwa baza (kaskadowo)
+            // Remove() zamienia się na soft delete (UPDATE IsDeleted = 1, patrz NewspaperDbContext);
+            // galeria i zdjęcia zostają nietknięte, więc przywrócenie artykułu to jedna zmiana flagi
             context.Articles.Remove(article);
             await context.SaveChangesAsync();
-
-            // zdjęcie do skasowania tylko wtedy, gdy nie używa go już żaden inny artykuł ani galeria
-            var orphaned = new List<int>();
-            foreach (var fileId in galleryFileIds.Append(coverFileId).Distinct())
-            {
-                if (fileId <= 0) continue;
-                if (await context.Articles.AnyAsync(a => a.FileId == fileId)) continue;
-                if (await context.ArticleImages.AnyAsync(i => i.FileId == fileId)) continue;
-
-                orphaned.Add(fileId);
-            }
-            _logger.LogDebug("Usunięto artykuł {ArticleId} z bazy (zdjęcia do skasowania: {Orphaned}).", id, orphaned.Count);
-            return orphaned;
+            _logger.LogDebug("Oznaczono artykuł {ArticleId} jako usunięty.", id);
         }
     }
 }

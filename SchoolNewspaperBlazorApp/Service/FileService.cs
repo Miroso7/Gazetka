@@ -168,20 +168,11 @@ namespace SchoolNewspaperBlazorApp.Service
         {
             if (id <= 0) return;
 
+            // soft delete: wpis dostaje IsDeleted = 1, a sam plik zostaje na dysku (da się go przywrócić)
             var fileName = await _fileRepository.DeleteFileAsync(id);
             if (string.IsNullOrWhiteSpace(fileName)) return;
 
-            // GetFileName odcina ewentualne ścieżki, więc nie da się wyjść poza folder Images
-            var fullPath = Path.Combine(uploadPath, Path.GetFileName(fileName));
-            if (File.Exists(fullPath))
-            {
-                File.Delete(fullPath);
-                _logger.LogInformation("Usunięto zdjęcie {FileName} (FileId {FileId}).", fileName, id);
-            }
-            else
-            {
-                _logger.LogWarning("Zdjęcie {FileName} (FileId {FileId}) usunięto z bazy, ale pliku nie było na dysku.", fileName, id);
-            }
+            _logger.LogInformation("Oznaczono zdjęcie {FileName} (FileId {FileId}) jako usunięte, plik zostaje na dysku.", fileName, id);
         }
 
         public async Task<string> GetFileNameByIdAsync(int id)

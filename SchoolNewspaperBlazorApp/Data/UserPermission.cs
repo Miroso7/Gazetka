@@ -1,7 +1,7 @@
 ﻿namespace SchoolNewspaperBlazorApp.Data
 {
     // Powiązanie: użytkownik ma dane uprawnienie.
-    public class UserPermission
+    public class UserPermission : ISoftDelete
     {
         public int Id { get; set; }
 
@@ -10,5 +10,8 @@
 
         public int PermissionId { get; set; }
         public Permission Permission { get; set; } = null!;
+
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedAt { get; set; }
     }
 }

@@ -283,7 +283,7 @@ else
         <div class="confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
             <div class="confirm__icon">@Icon("trash")</div>
             <h2 id="confirm-title" class="confirm__title">Usunąć artykuł?</h2>
-            <p class="confirm__text">Artykuł „@pendingDelete.Title” zostanie trwale usunięty. Tej operacji nie można cofnąć.</p>
+            <p class="confirm__text">Artykuł „@pendingDelete.Title” zostanie usunięty i przestanie być widoczny. Z panelu nie można tego cofnąć.</p>
             <div class="confirm__actions">
                 <button class="btn btn-outline-primary" @onclick="CancelDelete" disabled="@deleting">Anuluj</button>
                 <button class="btn btn-danger-solid" @onclick="ConfirmDeleteAsync" disabled="@deleting">

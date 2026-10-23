@@ -3,7 +3,7 @@ using SchoolNewspaperBlazorApp.Data.Enums;
 
 namespace SchoolNewspaperBlazorApp.Data
 {
-    public class Article
+    public class Article : ISoftDelete
     {
         public int Id { get; set; }
         public required string Title { get; set; }
@@ -15,6 +15,9 @@ namespace SchoolNewspaperBlazorApp.Data
         public string? Details { get; set; }
         public int FileId { get; set; }
         public List<ArticleImage> Images { get; set; } = new();
+
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedAt { get; set; }
 
     }
 

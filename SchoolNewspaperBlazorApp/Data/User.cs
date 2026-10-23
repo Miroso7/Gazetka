@@ -2,7 +2,7 @@
 
 namespace SchoolNewspaperBlazorApp.Data
 {
-    public class User
+    public class User : ISoftDelete
     {
         public int Id { get; set; }
         public string FirstName { get; set; } = string.Empty;
@@ -13,5 +13,8 @@ namespace SchoolNewspaperBlazorApp.Data
         public DateTime RegisterDate { get; set; }
         public string AddBy { get; set; } = string.Empty;
         public ICollection<UserPermission> UserPermission { get; set; } = new List<UserPermission>();
+
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedAt { get; set; }
     }
 }

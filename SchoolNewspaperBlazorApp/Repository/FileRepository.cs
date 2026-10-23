@@ -20,7 +20,9 @@ namespace SchoolNewspaperBlazorApp.Repository
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
+            // Id pliku nadajemy sami (max + 1), więc liczymy też usunięte wpisy; inaczej nowy plik dostałby Id usuniętego
             var id = await context.Files
+                .IgnoreQueryFilters()
                 .OrderByDescending(x => x.Id)
                 .Select(x => x.Id)
                 .FirstOrDefaultAsync();
@@ -58,14 +60,15 @@ namespace SchoolNewspaperBlazorApp.Repository
             var file = await context.Files.FirstOrDefaultAsync(f => f.Id == id);
             if (file == null)
             {
-                _logger.LogDebug("Zdjęcie {FileId} już nie istnieje w bazie.", id);
+                _logger.LogDebug("Zdjęcie {FileId} nie istnieje albo jest już usunięte.", id);
                 return null;
             }
 
+            // Remove() zamienia się na soft delete (UPDATE IsDeleted = 1, patrz NewspaperDbContext)
             var fileName = file.FileName;
             context.Files.Remove(file);
             await context.SaveChangesAsync();
-            _logger.LogDebug("Usunięto zdjęcie {FileId} z bazy.", id);
+            _logger.LogDebug("Oznaczono zdjęcie {FileId} jako usunięte.", id);
             return fileName;
         }
 

@@ -99,18 +99,18 @@ namespace SchoolNewspaperBlazorApp.Repository
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
-            var user = await context.Users
-                .Include(u => u.UserPermission)
-                .FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user is null)
             {
                 _logger.LogWarning("Nie można usunąć użytkownika {UserId}: nie istnieje.", userId);
                 return false;
             }
 
+            // Remove() zamienia się na soft delete (UPDATE IsDeleted = 1, patrz NewspaperDbContext);
+            // uprawnienia zostają nietknięte, więc po przywróceniu konta użytkownik ma je z powrotem
             context.Users.Remove(user);
             await context.SaveChangesAsync();
-            _logger.LogDebug("Usunięto użytkownika {UserId} razem z uprawnieniami.", userId);
+            _logger.LogDebug("Oznaczono użytkownika {UserId} jako usuniętego.", userId);
             return true;
         }
 
@@ -139,7 +139,20 @@ namespace SchoolNewspaperBlazorApp.Repository
                     _logger.LogInformation("Utworzono brakujący wiersz uprawnienia {Permission} w tabeli Permissions.", permission);
                 }
 
-                context.UserPermissions.Add(new UserPermission { UserId = userId, PermissionId = row.Id });
+                // odebrane wcześniej uprawnienie to wiersz z IsDeleted = 1 (a indeks UserId + PermissionId jest unikalny),
+                // więc zamiast dodawać duplikat przywracamy ten wiersz
+                var revoked = await context.UserPermissions
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(up => up.UserId == userId && up.PermissionId == row.Id);
+                if (revoked is not null)
+                {
+                    revoked.IsDeleted = false;
+                    revoked.DeletedAt = null;
+                }
+                else
+                {
+                    context.UserPermissions.Add(new UserPermission { UserId = userId, PermissionId = row.Id });
+                }
                 await context.SaveChangesAsync();
                 _logger.LogDebug("Nadano uprawnienie {Permission} użytkownikowi {UserId}.", permission, userId);
                 return;
@@ -155,7 +168,7 @@ namespace SchoolNewspaperBlazorApp.Repository
 
             context.UserPermissions.RemoveRange(links);
             await context.SaveChangesAsync();
-            _logger.LogDebug("Odebrano uprawnienie {Permission} użytkownikowi {UserId}.", permission, userId);
+            _logger.LogDebug("Odebrano (soft delete) uprawnienie {Permission} użytkownikowi {UserId}.", permission, userId);
         }
 
         // Cookie z /auth/login zawiera adres e-mail w claimie Name.

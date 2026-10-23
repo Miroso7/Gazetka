@@ -17,7 +17,7 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Repository
 
         Task<bool> UserHasPermissionAsync(int userId, EnumPermissions permission);
 
-        // Usuwa użytkownika razem z jego uprawnieniami. Zwraca false, gdy użytkownik nie istnieje.
+        // Usuwa użytkownika miękko (IsDeleted = 1), jego uprawnienia zostają. Zwraca false, gdy użytkownik nie istnieje.
         Task<bool> DeleteUserAsync(int userId);
 
         // Nadaje (granted = true) albo odbiera (false) permisję. Brakujący wiersz w tabeli Permissions tworzy sam.
