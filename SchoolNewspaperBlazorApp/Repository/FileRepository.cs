@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SchoolNewspaperBlazorApp.Data;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
 
@@ -7,10 +8,12 @@ namespace SchoolNewspaperBlazorApp.Repository
     public class FileRepository : IFileRepository
     {
         private readonly IDbContextFactory<NewspaperDbContext> _contextFactory;
+        private readonly ILogger<FileRepository> _logger;
 
-        public FileRepository(IDbContextFactory<NewspaperDbContext> contextFactory)
+        public FileRepository(IDbContextFactory<NewspaperDbContext> contextFactory, ILogger<FileRepository> logger)
         {
             _contextFactory = contextFactory;
+            _logger = logger;
         }
 
         public async Task<int> GetLastFileId()
@@ -31,6 +34,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             var fileId = await context.Files.FirstOrDefaultAsync(a => a.Id == id);
             if (fileId == null)
             {
+                _logger.LogWarning("Nie znaleziono zdjęcia {FileId} w bazie danych.", id);
                 throw new Exception("[FileRepository]Brak zdjecia w bazie danych");
             }
             return fileId;
@@ -54,12 +58,14 @@ namespace SchoolNewspaperBlazorApp.Repository
             var file = await context.Files.FirstOrDefaultAsync(f => f.Id == id);
             if (file == null)
             {
+                _logger.LogDebug("Zdjęcie {FileId} już nie istnieje w bazie.", id);
                 return null;
             }
 
             var fileName = file.FileName;
             context.Files.Remove(file);
             await context.SaveChangesAsync();
+            _logger.LogDebug("Usunięto zdjęcie {FileId} z bazy.", id);
             return fileName;
         }
 
@@ -69,6 +75,7 @@ namespace SchoolNewspaperBlazorApp.Repository
 
             await context.Files.AddAsync(file);
             await context.SaveChangesAsync();
+            _logger.LogDebug("Zapisano zdjęcie {FileId} w bazie.", file.Id);
         }
     }
 }

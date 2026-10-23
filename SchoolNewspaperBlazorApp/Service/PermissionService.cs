@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.Logging;
 using SchoolNewspaperBlazorApp.Data;
 using SchoolNewspaperBlazorApp.Data.Enums;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
@@ -12,15 +13,18 @@ namespace SchoolNewspaperBlazorApp.Service
         private readonly IPermissionRepository _permissionRepository;
         private readonly AuthenticationStateProvider _asp;
         private readonly ISessionRegistry _sessions;
+        private readonly ILogger<PermissionService> _logger;
 
         public PermissionService(
             IPermissionRepository permissionRepository,
             AuthenticationStateProvider asp,
-            ISessionRegistry sessions)
+            ISessionRegistry sessions,
+            ILogger<PermissionService> logger)
         {
             _permissionRepository = permissionRepository;
             _asp = asp;
             _sessions = sessions;
+            _logger = logger;
         }
 
         // Uprawnienia zarezerwowane dla konta master – z panelu nie można ich nadać nikomu.
@@ -46,6 +50,7 @@ namespace SchoolNewspaperBlazorApp.Service
             var sessionId = user.FindFirst(SessionRegistry.SessionClaimType)?.Value;
             if (!_sessions.IsActive(sessionId))
             {
+                _logger.LogDebug("Sesja nieaktywna, użytkownik traktowany jak niezalogowany.");
                 return new ClaimsPrincipal(new ClaimsIdentity());
             }
 
@@ -86,6 +91,7 @@ namespace SchoolNewspaperBlazorApp.Service
         {
             if (!await HasPermissionAsync(permission))
             {
+                _logger.LogWarning("Odmowa dostępu: brak uprawnienia {Permission}.", permission);
                 throw new UnauthorizedAccessException(
                     $"Brak uprawnienia: {PermissionInfo.Label(permission)}.");
             }
@@ -108,17 +114,20 @@ namespace SchoolNewspaperBlazorApp.Service
         {
             if (!await IsMasterAsync())
             {
+                _logger.LogWarning("Odmowa usunięcia użytkownika {TargetUserId}: tylko master może usuwać użytkowników.", userId);
                 throw new UnauthorizedAccessException("Tylko master może usuwać użytkowników.");
             }
 
             var currentId = await _permissionRepository.GetUserIdAsync(await GetPrincipalAsync());
             if (userId == currentId)
             {
+                _logger.LogWarning("Użytkownik {UserId} próbował usunąć własne konto.", currentId);
                 throw new InvalidOperationException("Nie możesz usunąć własnego konta.");
             }
 
             if (await _permissionRepository.UserHasPermissionAsync(userId, EnumPermissions.Master))
             {
+                _logger.LogWarning("Użytkownik {UserId} próbował usunąć konto master {TargetUserId}.", currentId, userId);
                 throw new InvalidOperationException("Nie można usunąć konta master.");
             }
 
@@ -126,19 +135,26 @@ namespace SchoolNewspaperBlazorApp.Service
             {
                 throw new InvalidOperationException("Nie znaleziono użytkownika.");
             }
+
+            _logger.LogInformation("Użytkownik {UserId} usunął użytkownika {TargetUserId}.", currentId, userId);
         }
 
         public async Task SetPermissionAsync(int userId, EnumPermissions permission, bool granted)
         {
             await RequirePermissionAsync(EnumPermissions.ManageUser);
 
+            var currentId = await _permissionRepository.GetUserIdAsync(await GetPrincipalAsync());
             if (IsMasterOnly(permission))
             {
+                _logger.LogWarning("Użytkownik {UserId} próbował zmienić uprawnienie {Permission} użytkownikowi {TargetUserId} z panelu.",
+                    currentId, permission, userId);
                 throw new InvalidOperationException(
                     "Tego uprawnienia nie można nadawać z panelu (master jest nadawany ręcznie w bazie).");
             }
 
             await _permissionRepository.SetPermissionAsync(userId, permission, granted);
+            _logger.LogInformation("Użytkownik {UserId} {Action} uprawnienie {Permission} użytkownikowi {TargetUserId}.",
+                currentId, granted ? "nadał" : "odebrał", permission, userId);
         }
     }
 }

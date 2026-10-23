@@ -2,8 +2,10 @@
 @using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 @using SchoolNewspaperBlazorApp.Service
+@using Microsoft.Extensions.Logging
 @inject IAuthService AuthService
 @inject NotificationService Notify
+@inject ILogger<MyAccountForm> Logger
 
 <div class="add-article-form">
     <h1 class="add-article-form__title">Moje konto</h1>
@@ -55,8 +57,9 @@
             firstName = profile?.FirstName ?? "";
             lastName = profile?.LastName ?? "";
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "Nie udało się wczytać profilu zalogowanego użytkownika.");
             profile = null;
         }
         finally

@@ -1,6 +1,8 @@
 ﻿@using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
+@using Microsoft.Extensions.Logging
+@inject ILogger<ArticleForm> logger
 @inject IArticleService articleService
 @inject IFileService fileService
 @inject IPermissionService permissionService
@@ -220,7 +222,10 @@
                 previewImage = $"/Images/{fileName}";
             }
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Nie udało się wczytać zdjęcia okładki artykułu {ArticleId}.", loadedArticleId);
+        }
 
         existingPhotos.Clear();
         stagedPhotos.Clear();
@@ -229,7 +234,10 @@
         {
             existingPhotos.AddRange(await articleService.GetArticleImagesAsync(ArticleToEdit.Id));
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Nie udało się wczytać galerii artykułu {ArticleId}.", loadedArticleId);
+        }
     }
 
     private async Task ChooseGalleryPhotos(InputFileChangeEventArgs e)
@@ -282,8 +290,9 @@
                     Preview = $"data:image/jpeg;base64,{Convert.ToBase64String(thumbMemory.ToArray())}"
                 });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logger.LogWarning(ex, "Pominięto zdjęcie do galerii {FileName}: nie udało się go wczytać.", picture.Name);
                 skipped++;
             }
         }

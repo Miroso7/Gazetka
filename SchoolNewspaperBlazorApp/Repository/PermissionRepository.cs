@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SchoolNewspaperBlazorApp.Data;
 using SchoolNewspaperBlazorApp.Data.Enums;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
@@ -9,10 +10,12 @@ namespace SchoolNewspaperBlazorApp.Repository
     public class PermissionRepository : IPermissionRepository
     {
         private readonly IDbContextFactory<NewspaperDbContext> _contextFactory;
+        private readonly ILogger<PermissionRepository> _logger;
 
-        public PermissionRepository(IDbContextFactory<NewspaperDbContext> contextFactory)
+        public PermissionRepository(IDbContextFactory<NewspaperDbContext> contextFactory, ILogger<PermissionRepository> logger)
         {
             _contextFactory = contextFactory;
+            _logger = logger;
         }
 
         public async Task<int> GetUserIdAsync(ClaimsPrincipal principal)
@@ -28,6 +31,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             var userId = await ResolveUserIdAsync(context, principal);
             if (userId == 0)
             {
+                _logger.LogDebug("Sprawdzanie uprawnienia {Permission} dla niezalogowanego lub nieznanego użytkownika.", permission);
                 return false;
             }
 
@@ -100,11 +104,13 @@ namespace SchoolNewspaperBlazorApp.Repository
                 .FirstOrDefaultAsync(u => u.Id == userId);
             if (user is null)
             {
+                _logger.LogWarning("Nie można usunąć użytkownika {UserId}: nie istnieje.", userId);
                 return false;
             }
 
             context.Users.Remove(user);
             await context.SaveChangesAsync();
+            _logger.LogDebug("Usunięto użytkownika {UserId} razem z uprawnieniami.", userId);
             return true;
         }
 
@@ -130,10 +136,12 @@ namespace SchoolNewspaperBlazorApp.Repository
                     row = new Permission { PermissionName = permission };
                     context.Permissions.Add(row);
                     await context.SaveChangesAsync();
+                    _logger.LogInformation("Utworzono brakujący wiersz uprawnienia {Permission} w tabeli Permissions.", permission);
                 }
 
                 context.UserPermissions.Add(new UserPermission { UserId = userId, PermissionId = row.Id });
                 await context.SaveChangesAsync();
+                _logger.LogDebug("Nadano uprawnienie {Permission} użytkownikowi {UserId}.", permission, userId);
                 return;
             }
 
@@ -147,6 +155,7 @@ namespace SchoolNewspaperBlazorApp.Repository
 
             context.UserPermissions.RemoveRange(links);
             await context.SaveChangesAsync();
+            _logger.LogDebug("Odebrano uprawnienie {Permission} użytkownikowi {UserId}.", permission, userId);
         }
 
         // Cookie z /auth/login zawiera adres e-mail w claimie Name.

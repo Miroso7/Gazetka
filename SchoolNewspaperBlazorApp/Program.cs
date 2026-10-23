@@ -120,7 +120,8 @@ namespace SchoolNewspaperBlazorApp
             app.MapPost("/auth/login", async (
                 HttpContext context,
                 IAuthService authService,
-                ISessionRegistry sessions) =>
+                ISessionRegistry sessions,
+                ILogger<Program> logger) =>
             {
                 // żądanie musi pochodzić z formularza z naszej strony (token antiforgery)
                 if (!await IsAntiforgeryValidAsync(context))
@@ -135,6 +136,7 @@ namespace SchoolNewspaperBlazorApp
                 bool success = await authService.LoginAsync(email, password);
                 if (!success)
                 {
+                    logger.LogWarning("Nieudane logowanie z adresu {RemoteIp}.", context.Connection.RemoteIpAddress);
                     return Results.Redirect("/login?error=1");
                 }
 
@@ -187,6 +189,9 @@ namespace SchoolNewspaperBlazorApp
             }
             catch (AntiforgeryValidationException)
             {
+                var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+                logger.LogWarning("Odrzucono żądanie {Path} z adresu {RemoteIp}: nieprawidłowy token antiforgery.",
+                    context.Request.Path, context.Connection.RemoteIpAddress);
                 return false;
             }
         }

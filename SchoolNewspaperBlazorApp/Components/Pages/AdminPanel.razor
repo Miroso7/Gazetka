@@ -5,6 +5,8 @@
 @inject IPermissionService permissionService
 @inject NavigationManager Navigation
 @inject NotificationService Notify
+@inject ILogger<AdminPanel> logger
+@using Microsoft.Extensions.Logging
 @using SchoolNewspaperBlazorApp.Components.Components
 @using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Data.Enums
@@ -495,8 +497,9 @@ else
             pendingDelete = null;
             _ = ShowToastAsync("Nie masz uprawnienia do usuwania artykułów.", true);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            logger.LogError(ex, "Nie udało się usunąć artykułu {ArticleId}.", article.Id);
             _ = ShowToastAsync("Nie udało się usunąć artykułu.", true);
         }
         finally

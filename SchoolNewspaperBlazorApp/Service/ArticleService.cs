@@ -47,6 +47,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 Images = gallery.Select(galleryFileId => new ArticleImage { FileId = galleryFileId }).ToList()
             };
             await _articleRepository.AddArticleAsync(article);
+            _logger.LogInformation("Dodano artykuł {ArticleId} (typ {Type}, zdjęcia w galerii: {GalleryCount}).", article.Id, type, gallery.Count);
         }
         public async Task<List<Article>> GetAllArticlesAsync()
         {
@@ -61,6 +62,7 @@ namespace SchoolNewspaperBlazorApp.Service
             Article article = await _articleRepository.GetArticleByIdAsync(id);
             if (article == null)
             {
+                _logger.LogWarning("Nie znaleziono artykułu {ArticleId}.", id);
                 throw new Exception($"Article with ID {id} not found.");
             }
             return article;
@@ -102,6 +104,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 FileId = fileId
             };
             var removedFileIds = await _articleRepository.UpdateArticleAsync(article, added, removed);
+            _logger.LogInformation("Zaktualizowano artykuł {ArticleId} (dodane zdjęcia: {Added}, usunięte: {Removed}).", id, added.Count, removed.Count);
 
             // wpisy w bazie są już zaktualizowane, więc błąd przy kasowaniu plików nie może pokazać błędu
             if (removedFileIds.Count > 0)
@@ -150,6 +153,7 @@ namespace SchoolNewspaperBlazorApp.Service
             if (id <= 0) return;
 
             var orphanedFileIds = await _articleRepository.RemoveArticleByIdAsync(id);
+            _logger.LogInformation("Usunięto artykuł {ArticleId} (zdjęcia do skasowania: {Orphaned}).", id, orphanedFileIds.Count);
 
             // artykuł jest już usunięty, więc błąd przy kasowaniu zdjęcia nie może go "cofnąć" ani pokazać błędu
             foreach (var orphanedFileId in orphanedFileIds)

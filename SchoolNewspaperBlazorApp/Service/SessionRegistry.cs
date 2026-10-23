@@ -1,4 +1,5 @@
-﻿using SchoolNewspaperBlazorApp.Interfaces.Service;
+﻿using Microsoft.Extensions.Logging;
+using SchoolNewspaperBlazorApp.Interfaces.Service;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 
@@ -14,6 +15,12 @@ namespace SchoolNewspaperBlazorApp.Service
         public static readonly TimeSpan Lifetime = TimeSpan.FromHours(1);
 
         private readonly ConcurrentDictionary<string, DateTime> _sessions = new();
+        private readonly ILogger<SessionRegistry> _logger;
+
+        public SessionRegistry(ILogger<SessionRegistry> logger)
+        {
+            _logger = logger;
+        }
 
         public string Create()
         {
@@ -21,6 +28,7 @@ namespace SchoolNewspaperBlazorApp.Service
 
             var sessionId = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
             _sessions[sessionId] = DateTime.UtcNow + Lifetime;
+            _logger.LogDebug("Utworzono sesję (aktywnych sesji: {Count}).", _sessions.Count);
             return sessionId;
         }
 
@@ -32,6 +40,7 @@ namespace SchoolNewspaperBlazorApp.Service
             if (expiresAt <= DateTime.UtcNow)
             {
                 _sessions.TryRemove(sessionId, out _);
+                _logger.LogDebug("Sesja wygasła i została usunięta.");
                 return false;
             }
             return true;
@@ -52,7 +61,10 @@ namespace SchoolNewspaperBlazorApp.Service
         {
             if (string.IsNullOrEmpty(sessionId)) return;
 
-            _sessions.TryRemove(sessionId, out _);
+            if (_sessions.TryRemove(sessionId, out _))
+            {
+                _logger.LogDebug("Unieważniono sesję (aktywnych sesji: {Count}).", _sessions.Count);
+            }
         }
 
         private void PurgeExpired()

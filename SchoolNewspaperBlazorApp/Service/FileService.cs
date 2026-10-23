@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.Extensions.Logging;
 using SchoolNewspaperBlazorApp.Data;
 using SchoolNewspaperBlazorApp.Data.Enums;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
@@ -10,10 +11,12 @@ namespace SchoolNewspaperBlazorApp.Service
     {
         private readonly IFileRepository _fileRepository;
         private readonly IPermissionService _permissionService;
-        public FileService(IFileRepository fileRepository, IPermissionService permissionService)
+        private readonly ILogger<FileService> _logger;
+        public FileService(IFileRepository fileRepository, IPermissionService permissionService, ILogger<FileService> logger)
         {
             _fileRepository = fileRepository;
             _permissionService = permissionService;
+            _logger = logger;
         }
         private readonly string uploadPath = @"C:\Users\Uczeń2026\source\repos\Gazetka\Images";
         public async Task<string> GetPreviewAsync(IBrowserFile file)
@@ -30,6 +33,7 @@ namespace SchoolNewspaperBlazorApp.Service
             if (!await _permissionService.HasPermissionAsync(EnumPermissions.AddArticle)
                 && !await _permissionService.HasPermissionAsync(EnumPermissions.EditArticle))
             {
+                _logger.LogWarning("Odmowa wgrania zdjęcia: brak uprawnienia do dodawania lub edycji artykułów.");
                 throw new UnauthorizedAccessException("Brak uprawnienia do dodawania zdjęć.");
             }
         }
@@ -51,6 +55,7 @@ namespace SchoolNewspaperBlazorApp.Service
             // najpierw sprawdzamy wszystkie zdjęcia, żeby przy błędzie nic nie trafiło na dysk
             if (images.Any(image => !IsSupportedImage(image)))
             {
+                _logger.LogWarning("Odrzucono wgrywanie {Count} zdjęć: co najmniej jeden plik nie jest obsługiwanym zdjęciem.", images.Count);
                 throw new InvalidOperationException("Dozwolone są tylko zdjęcia w formacie JPG, PNG, GIF lub WebP.");
             }
 
@@ -62,12 +67,17 @@ namespace SchoolNewspaperBlazorApp.Service
                     ids.Add(await StoreImageAsync(image));
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Nie udało się wgrać zdjęć (zapisano {Stored} z {Count}), wycofuję zapisane.", ids.Count, images.Count);
                 // nie zostawiamy po sobie części wgranych zdjęć
                 foreach (var id in ids)
                 {
-                    try { await RemoveStoredFileAsync(id); } catch (Exception) { }
+                    try { await RemoveStoredFileAsync(id); }
+                    catch (Exception rollbackEx)
+                    {
+                        _logger.LogWarning(rollbackEx, "Nie udało się wycofać zdjęcia (FileId {FileId}) po błędzie wgrywania.", id);
+                    }
                 }
                 throw;
             }
@@ -81,6 +91,7 @@ namespace SchoolNewspaperBlazorApp.Service
             string? extension = DetectImageExtension(bytes);
             if (extension is null)
             {
+                _logger.LogWarning("Odrzucono plik: zawartość nie jest obsługiwanym zdjęciem.");
                 throw new InvalidOperationException("Dozwolone są tylko zdjęcia w formacie JPG, PNG, GIF lub WebP.");
             }
 
@@ -100,6 +111,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 FileType = extension
             };
             await _fileRepository.AddFileAsync(mediaFile);
+            _logger.LogInformation("Zapisano zdjęcie {FileName} (FileId {FileId}, {Size} B).", fileName, id, bytes.Length);
 
             return id;
 
@@ -142,6 +154,7 @@ namespace SchoolNewspaperBlazorApp.Service
             if (!await _permissionService.HasPermissionAsync(EnumPermissions.EditArticle)
                 && !await _permissionService.HasPermissionAsync(EnumPermissions.DeleteArticle))
             {
+                _logger.LogWarning("Odmowa usunięcia zdjęć: brak uprawnienia do edycji lub usuwania artykułów.");
                 throw new UnauthorizedAccessException("Brak uprawnienia do usuwania zdjęć.");
             }
 
@@ -163,6 +176,11 @@ namespace SchoolNewspaperBlazorApp.Service
             if (File.Exists(fullPath))
             {
                 File.Delete(fullPath);
+                _logger.LogInformation("Usunięto zdjęcie {FileName} (FileId {FileId}).", fileName, id);
+            }
+            else
+            {
+                _logger.LogWarning("Zdjęcie {FileName} (FileId {FileId}) usunięto z bazy, ale pliku nie było na dysku.", fileName, id);
             }
         }
 

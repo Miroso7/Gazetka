@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SchoolNewspaperBlazorApp.Data;
 using SchoolNewspaperBlazorApp.Data.Enums;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
@@ -8,10 +9,12 @@ namespace SchoolNewspaperBlazorApp.Repository
     public class ArticleRepository : IArticleRepository
     {
         private readonly IDbContextFactory<NewspaperDbContext> _contextFactory;
+        private readonly ILogger<ArticleRepository> _logger;
 
-        public ArticleRepository(IDbContextFactory<NewspaperDbContext> contextFactory)
+        public ArticleRepository(IDbContextFactory<NewspaperDbContext> contextFactory, ILogger<ArticleRepository> logger)
         {
             _contextFactory = contextFactory;
+            _logger = logger;
         }
 
         public async Task AddArticleAsync(Article article)
@@ -20,6 +23,7 @@ namespace SchoolNewspaperBlazorApp.Repository
 
             await context.Articles.AddAsync(article);
             await context.SaveChangesAsync();
+            _logger.LogDebug("Zapisano artykuł {ArticleId} w bazie.", article.Id);
         }
 
         public async Task<List<Article>> GetAllArticlesAsync()
@@ -51,6 +55,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             var article = await context.Articles.FirstOrDefaultAsync(a => a.Id == id);
             if (article == null)
             {
+                _logger.LogWarning("Nie znaleziono artykułu {ArticleId}.", id);
                 throw new Exception($"Article with ID {id} not found.");
             }
             return article;
@@ -63,6 +68,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             var existing = await context.Articles.FirstOrDefaultAsync(a => a.Id == article.Id);
             if (existing == null)
             {
+                _logger.LogWarning("Nie można zaktualizować artykułu {ArticleId}: nie istnieje.", article.Id);
                 throw new Exception($"Article with ID {article.Id} not found.");
             }
 
@@ -92,6 +98,8 @@ namespace SchoolNewspaperBlazorApp.Repository
             }
 
             await context.SaveChangesAsync();
+            _logger.LogDebug("Zaktualizowano artykuł {ArticleId} (dodane zdjęcia: {Added}, usunięte: {Removed}).",
+                article.Id, addedFileIds.Count, removedFileIds.Count);
             return removedFileIds;
         }
 
@@ -122,6 +130,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             var article = await context.Articles.FirstOrDefaultAsync(a => a.Id == id);
             if (article == null)
             {
+                _logger.LogWarning("Nie można usunąć artykułu {ArticleId}: nie istnieje.", id);
                 throw new Exception($"Article with ID {id} not found.");
             }
 
@@ -145,6 +154,7 @@ namespace SchoolNewspaperBlazorApp.Repository
 
                 orphaned.Add(fileId);
             }
+            _logger.LogDebug("Usunięto artykuł {ArticleId} z bazy (zdjęcia do skasowania: {Orphaned}).", id, orphaned.Count);
             return orphaned;
         }
     }

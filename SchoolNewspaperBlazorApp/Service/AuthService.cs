@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
 using System.Text;
 using SchoolNewspaperBlazorApp.Data;
 using SchoolNewspaperBlazorApp.Data.Enums;
@@ -17,11 +18,13 @@ namespace SchoolNewspaperBlazorApp.Service
 
         private readonly IAuthRepository _authRepository;
         private readonly IPermissionService _permissionService;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IAuthRepository authRepository, IPermissionService permissionService)
+        public AuthService(IAuthRepository authRepository, IPermissionService permissionService, ILogger<AuthService> logger)
         {
             _authRepository = authRepository;
             _permissionService = permissionService;
+            _logger = logger;
         }
 
         public async Task AddUserAsync(string firstName, string lastName, string password, string email, UserRole role)
@@ -59,6 +62,7 @@ namespace SchoolNewspaperBlazorApp.Service
 
             if (await _authRepository.EmailExistsAsync(email))
             {
+                _logger.LogWarning("Nie dodano użytkownika: podany adres e-mail jest już zajęty.");
                 throw new InvalidOperationException("Użytkownik o takim adresie e-mail już istnieje.");
             }
 
@@ -73,6 +77,7 @@ namespace SchoolNewspaperBlazorApp.Service
             };
 
             await _authRepository.AddUserAsync(user);
+            _logger.LogInformation("Dodano użytkownika {UserId} (rola {Role}).", user.Id, role);
         }
 
         public async Task<UserProfile?> GetMyProfileAsync()
@@ -92,6 +97,7 @@ namespace SchoolNewspaperBlazorApp.Service
             var isMaster = await _permissionService.HasPermissionAsync(EnumPermissions.Master);
             if (!isMaster && userId != myId)
             {
+                _logger.LogWarning("Użytkownik {UserId} próbował edytować konto użytkownika {TargetUserId} bez uprawnień.", myId, userId);
                 throw new UnauthorizedAccessException("Możesz edytować tylko własne konto.");
             }
 
@@ -151,6 +157,9 @@ namespace SchoolNewspaperBlazorApp.Service
             {
                 throw new InvalidOperationException("Nie znaleziono użytkownika.");
             }
+
+            _logger.LogInformation("Użytkownik {UserId} zaktualizował dane użytkownika {TargetUserId} (rola {Role}, zmiana e-maila: {EmailChanged}).",
+                myId, userId, role, emailChanged);
         }
 
         public async Task<bool> LoginAsync(string email, string password)
@@ -163,24 +172,42 @@ namespace SchoolNewspaperBlazorApp.Service
             var user = await _authRepository.GetUserByEmailAsync(email.Trim());
             if (user is null)
             {
+                _logger.LogDebug("Logowanie odrzucone: nie ma użytkownika o podanym adresie e-mail.");
                 return false;
             }
 
             if (IsHashed(user.Password))
             {
-                return VerifyHash(user.Password, password);
+                var verified = VerifyHash(user.Password, password);
+                LogLoginResult(user.Id, verified);
+                return verified;
             }
 
             // Stare konto z hasłem zapisanym jawnie: porównujemy w C# (rozróżnia wielkość liter),
             // a po udanym logowaniu od razu zamieniamy hasło na hash.
             if (!SecureEquals(user.Password, password))
             {
+                LogLoginResult(user.Id, false);
                 return false;
             }
 
             user.Password = HashPassword(password);
             await _authRepository.UpdateUserAsync(user);
+            _logger.LogInformation("Zamieniono hasło użytkownika {UserId} zapisane jawnie na hash.", user.Id);
+            LogLoginResult(user.Id, true);
             return true;
+        }
+
+        private void LogLoginResult(int userId, bool success)
+        {
+            if (success)
+            {
+                _logger.LogInformation("Zalogowano użytkownika {UserId}.", userId);
+            }
+            else
+            {
+                _logger.LogWarning("Nieudane logowanie: błędne hasło użytkownika {UserId}.", userId);
+            }
         }
 
         private static string HashPassword(string password)

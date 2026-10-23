@@ -1,8 +1,10 @@
 ﻿@using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
+@using Microsoft.Extensions.Logging
 @inject IPermissionService PermissionService
 @inject IAuthService AuthService
+@inject ILogger<PermissionManager> Logger
 
 <div class="perm-legend panel">
     <div class="panel__head">
@@ -241,8 +243,9 @@
             error = ex.Message;
             await LoadAsync(); // przywraca prawdziwy stan pól wyboru
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "Nie udało się zmienić uprawnienia {Permission} użytkownika {UserId}.", permission, user.UserId);
             error = "Nie udało się zapisać zmiany. Spróbuj ponownie.";
             await LoadAsync();
         }
@@ -290,8 +293,9 @@
         {
             editError = ex.Message;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "Nie udało się zapisać danych użytkownika {UserId}.", user.UserId);
             editError = "Nie udało się zapisać zmian. Spróbuj ponownie.";
         }
         finally
@@ -324,8 +328,9 @@
             error = ex.Message;
             await LoadAsync();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "Nie udało się usunąć użytkownika {UserId}.", user.UserId);
             error = "Nie udało się usunąć użytkownika. Spróbuj ponownie.";
             await LoadAsync();
         }
@@ -354,8 +359,9 @@
             error = ex.Message;
             await LoadAsync();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "Nie udało się nadać wszystkich uprawnień użytkownikowi {UserId}.", user.UserId);
             error = "Nie udało się zapisać zmiany. Spróbuj ponownie.";
             await LoadAsync();
         }
