@@ -14,7 +14,9 @@ namespace SchoolNewspaperBlazorApp.Service
         // tyle samo co ExpireTimeSpan cookie w Program.cs
         public static readonly TimeSpan Lifetime = TimeSpan.FromHours(1);
 
-        private readonly ConcurrentDictionary<string, DateTime> _sessions = new();
+        private sealed record SessionEntry(DateTime ExpiresAt, string UserKey);
+
+        private readonly ConcurrentDictionary<string, SessionEntry> _sessions = new();
         private readonly ILogger<SessionRegistry> _logger;
 
         public SessionRegistry(ILogger<SessionRegistry> logger)
@@ -22,12 +24,12 @@ namespace SchoolNewspaperBlazorApp.Service
             _logger = logger;
         }
 
-        public string Create()
+        public string Create(string userKey)
         {
             PurgeExpired();
 
             var sessionId = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-            _sessions[sessionId] = DateTime.UtcNow + Lifetime;
+            _sessions[sessionId] = new SessionEntry(DateTime.UtcNow + Lifetime, userKey);
             _logger.LogDebug("Utworzono sesję (aktywnych sesji: {Count}).", _sessions.Count);
             return sessionId;
         }
@@ -35,9 +37,9 @@ namespace SchoolNewspaperBlazorApp.Service
         public bool IsActive(string? sessionId)
         {
             if (string.IsNullOrEmpty(sessionId)) return false;
-            if (!_sessions.TryGetValue(sessionId, out var expiresAt)) return false;
+            if (!_sessions.TryGetValue(sessionId, out var entry)) return false;
 
-            if (expiresAt <= DateTime.UtcNow)
+            if (entry.ExpiresAt <= DateTime.UtcNow)
             {
                 _sessions.TryRemove(sessionId, out _);
                 _logger.LogDebug("Sesja wygasła i została usunięta.");
@@ -51,9 +53,9 @@ namespace SchoolNewspaperBlazorApp.Service
             if (string.IsNullOrEmpty(sessionId)) return;
 
             // TryUpdate nie wskrzesi sesji, którą ktoś w międzyczasie unieważnił
-            if (_sessions.TryGetValue(sessionId, out var expiresAt) && expiresAt > DateTime.UtcNow)
+            if (_sessions.TryGetValue(sessionId, out var entry) && entry.ExpiresAt > DateTime.UtcNow)
             {
-                _sessions.TryUpdate(sessionId, DateTime.UtcNow + Lifetime, expiresAt);
+                _sessions.TryUpdate(sessionId, entry with { ExpiresAt = DateTime.UtcNow + Lifetime }, entry);
             }
         }
 
@@ -67,12 +69,28 @@ namespace SchoolNewspaperBlazorApp.Service
             }
         }
 
+        public void RevokeAllForUser(string? userKey)
+        {
+            if (string.IsNullOrWhiteSpace(userKey)) return;
+
+            var revoked = 0;
+            foreach (var session in _sessions)
+            {
+                if (string.Equals(session.Value.UserKey, userKey, StringComparison.OrdinalIgnoreCase)
+                    && _sessions.TryRemove(session.Key, out _))
+                {
+                    revoked++;
+                }
+            }
+            _logger.LogDebug("Unieważniono {Revoked} sesji użytkownika (aktywnych sesji: {Count}).", revoked, _sessions.Count);
+        }
+
         private void PurgeExpired()
         {
             var now = DateTime.UtcNow;
             foreach (var session in _sessions)
             {
-                if (session.Value <= now)
+                if (session.Value.ExpiresAt <= now)
                 {
                     _sessions.TryRemove(session.Key, out _);
                 }

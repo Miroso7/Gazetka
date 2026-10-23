@@ -71,6 +71,8 @@ namespace SchoolNewspaperBlazorApp.Service
                 FirstName = firstName,
                 LastName = lastName,
                 Password = HashPassword(password),
+                // hasło od administratora jest tymczasowe: użytkownik ustawia własne przy pierwszym logowaniu
+                MustChangePassword = true,
                 Email = email,
                 Role = role,
                 RegisterDate = DateTime.Now
@@ -162,25 +164,25 @@ namespace SchoolNewspaperBlazorApp.Service
                 myId, userId, role, emailChanged);
         }
 
-        public async Task<bool> LoginAsync(string email, string password)
+        public async Task<LoginResult> LoginAsync(string email, string password)
         {
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrEmpty(password))
             {
-                return false;
+                return LoginResult.Failed;
             }
 
             var user = await _authRepository.GetUserByEmailAsync(email.Trim());
             if (user is null)
             {
                 _logger.LogDebug("Logowanie odrzucone: nie ma użytkownika o podanym adresie e-mail.");
-                return false;
+                return LoginResult.Failed;
             }
 
             if (IsHashed(user.Password))
             {
                 var verified = VerifyHash(user.Password, password);
                 LogLoginResult(user.Id, verified);
-                return verified;
+                return verified ? new LoginResult(true, user.MustChangePassword) : LoginResult.Failed;
             }
 
             // Stare konto z hasłem zapisanym jawnie: porównujemy w C# (rozróżnia wielkość liter),
@@ -188,14 +190,69 @@ namespace SchoolNewspaperBlazorApp.Service
             if (!SecureEquals(user.Password, password))
             {
                 LogLoginResult(user.Id, false);
-                return false;
+                return LoginResult.Failed;
             }
 
             user.Password = HashPassword(password);
             await _authRepository.UpdateUserAsync(user);
             _logger.LogInformation("Zamieniono hasło użytkownika {UserId} zapisane jawnie na hash.", user.Id);
             LogLoginResult(user.Id, true);
-            return true;
+            return new LoginResult(true, user.MustChangePassword);
+        }
+
+        public async Task<ChangePasswordResult> ChangePasswordAsync(string email, string currentPassword, string newPassword, string confirmPassword)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return ChangePasswordResult.UserNotFound;
+            }
+
+            // najpierw tanie sprawdzenia formularza, dopiero potem kosztowne liczenie hasha
+            if (newPassword != confirmPassword)
+            {
+                return ChangePasswordResult.PasswordsDoNotMatch;
+            }
+
+            if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < PasswordPolicy.MinLength)
+            {
+                return ChangePasswordResult.TooShort;
+            }
+
+            if (newPassword.Length > PasswordPolicy.MaxLength)
+            {
+                return ChangePasswordResult.TooLong;
+            }
+
+            var user = await _authRepository.GetUserByEmailAsync(email.Trim());
+            if (user is null)
+            {
+                _logger.LogWarning("Zmiana hasła odrzucona: nie znaleziono konta zalogowanej osoby.");
+                return ChangePasswordResult.UserNotFound;
+            }
+
+            if (string.IsNullOrEmpty(currentPassword) || !PasswordMatches(user, currentPassword))
+            {
+                _logger.LogWarning("Zmiana hasła odrzucona: błędne obecne hasło użytkownika {UserId}.", user.Id);
+                return ChangePasswordResult.WrongCurrentPassword;
+            }
+
+            if (PasswordMatches(user, newPassword))
+            {
+                return ChangePasswordResult.SameAsCurrent;
+            }
+
+            if (string.Equals(newPassword.Trim(), user.Email.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return ChangePasswordResult.SameAsEmail;
+            }
+
+            if (!await _authRepository.UpdatePasswordAsync(user.Id, HashPassword(newPassword)))
+            {
+                return ChangePasswordResult.UserNotFound;
+            }
+
+            _logger.LogInformation("Użytkownik {UserId} zmienił hasło.", user.Id);
+            return ChangePasswordResult.Success;
         }
 
         private void LogLoginResult(int userId, bool success)
@@ -222,6 +279,10 @@ namespace SchoolNewspaperBlazorApp.Service
                 Convert.ToBase64String(salt),
                 Convert.ToBase64String(hash));
         }
+
+        // Hasło zapisane jako hash albo (stare konta) jawnie – tak samo jak przy logowaniu.
+        private static bool PasswordMatches(User user, string password) =>
+            IsHashed(user.Password) ? VerifyHash(user.Password, password) : SecureEquals(user.Password, password);
 
         private static bool IsHashed(string? stored) =>
             stored is not null && stored.StartsWith(HashPrefix + "$", StringComparison.Ordinal);

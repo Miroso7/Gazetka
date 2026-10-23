@@ -1,5 +1,5 @@
 ﻿@page "/adminPanel"
-@attribute [Authorize]
+@attribute [Authorize(Policy = AuthConstants.FullAccessPolicy)]
 @inject IArticleService articleService
 @inject IFileService fileService
 @inject IPermissionService permissionService
@@ -304,6 +304,10 @@ else
     [SupplyParameterFromQuery(Name = "zalogowano")]
     public string? LoggedInFlag { get; set; }
 
+    // parametr z adresu ustawiany po zmianie hasła (/adminPanel?haslo=1)
+    [SupplyParameterFromQuery(Name = "haslo")]
+    public string? PasswordChangedFlag { get; set; }
+
     private readonly Dictionary<int, string> imageUrls = new();
     private bool loading = true;
     private bool deleting;
@@ -355,6 +359,11 @@ else
         {
             _ = ShowToastAsync("Zalogowano pomyślnie.");
             // czyścimy adres, żeby po odświeżeniu strony komunikat nie wracał
+            Navigation.NavigateTo("/adminPanel", replace: true);
+        }
+        else if (PasswordChangedFlag == "1")
+        {
+            _ = ShowToastAsync("Hasło zostało zmienione.");
             Navigation.NavigateTo("/adminPanel", replace: true);
         }
     }

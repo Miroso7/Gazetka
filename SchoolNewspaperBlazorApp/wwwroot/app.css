@@ -4299,3 +4299,30 @@ article.ap {
         transform: none;
     }
 }
+
+/* ---------- Zmiana hasła ---------- */
+.auth-info {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin-bottom: 1.15rem;
+    padding: .8rem 1rem;
+    font-size: .92rem;
+    font-weight: 600;
+    color: var(--blue-dark);
+    background: var(--blue-soft);
+    border: 1px solid rgba(23, 105, 224, .25);
+    border-radius: var(--radius-sm);
+    animation: pop-in .3s var(--ease);
+}
+
+.auth-hint {
+    margin-top: .4rem;
+    font-size: .82rem;
+    color: var(--muted);
+}
+
+.auth-extra {
+    margin-top: 1.25rem;
+    text-align: center;
+}

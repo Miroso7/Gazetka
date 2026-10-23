@@ -45,6 +45,12 @@ namespace SchoolNewspaperBlazorApp.Service
             var authState = await _asp.GetAuthenticationStateAsync();
             var user = authState.User;
 
+            // dopóki konto nie ustawi własnego hasła, nie ma żadnych uprawnień (to zabezpieczenie działa też w otwartym obwodzie Blazora)
+            if (user.HasClaim(c => c.Type == AuthConstants.MustChangePasswordClaim))
+            {
+                return new ClaimsPrincipal(new ClaimsIdentity());
+            }
+
             // sesja wygasła albo użytkownik został wylogowany: traktujemy go jak niezalogowanego,
             // nawet jeśli obwód Blazora nadal trzyma stare uwierzytelnienie
             var sessionId = user.FindFirst(SessionRegistry.SessionClaimType)?.Value;

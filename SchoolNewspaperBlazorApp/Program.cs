@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using SchoolNewspaperBlazorApp.Components;
 using SchoolNewspaperBlazorApp.Data;
+using SchoolNewspaperBlazorApp.Data.Enums;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
 using SchoolNewspaperBlazorApp.Interfaces.Service;
 using SchoolNewspaperBlazorApp.Repository;
@@ -70,7 +71,13 @@ namespace SchoolNewspaperBlazorApp
                         sessions.Touch(sessionId);
                     };
                 });
-            builder.Services.AddAuthorization();
+            builder.Services.AddAuthorization(options =>
+            {
+                // konto z wymuszoną zmianą hasła jest zalogowane, ale do czasu zmiany nie wejdzie na chronione strony
+                options.AddPolicy(AuthConstants.FullAccessPolicy, policy => policy
+                    .RequireAuthenticatedUser()
+                    .RequireAssertion(context => !context.User.HasClaim(c => c.Type == AuthConstants.MustChangePasswordClaim)));
+            });
             builder.Services.AddCascadingAuthenticationState();
 
             var app = builder.Build();
@@ -104,6 +111,25 @@ namespace SchoolNewspaperBlazorApp
             app.UseAuthentication();
             app.UseAuthorization();
 
+            // Konto z wymuszoną zmianą hasła widzi tylko stronę zmiany hasła (i wylogowanie).
+            app.Use(async (context, next) =>
+            {
+                if (context.User.HasClaim(c => c.Type == AuthConstants.MustChangePasswordClaim)
+                    && !IsAllowedBeforePasswordChange(context.Request.Path))
+                {
+                    if (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
+                    {
+                        context.Response.Redirect("/change-password");
+                    }
+                    else
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    }
+                    return;
+                }
+                await next();
+            });
+
             app.Use(async (context, next) =>
             {
                 if (HttpMethods.IsGet(context.Request.Method)
@@ -133,8 +159,8 @@ namespace SchoolNewspaperBlazorApp
                 string email = form["Email"].ToString().Trim();
                 string password = form["Password"].ToString();
 
-                bool success = await authService.LoginAsync(email, password);
-                if (!success)
+                var login = await authService.LoginAsync(email, password);
+                if (!login.Success)
                 {
                     logger.LogWarning("Nieudane logowanie z adresu {RemoteIp}.", context.Connection.RemoteIpAddress);
                     return Results.Redirect("/login?error=1");
@@ -146,8 +172,12 @@ namespace SchoolNewspaperBlazorApp
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, email),
-                    new Claim(SessionRegistry.SessionClaimType, sessions.Create())
+                    new Claim(SessionRegistry.SessionClaimType, sessions.Create(email))
                 };
+                if (login.MustChangePassword)
+                {
+                    claims.Add(new Claim(AuthConstants.MustChangePasswordClaim, "1"));
+                }
                 var identity = new ClaimsIdentity(
                     claims,
                     CookieAuthenticationDefaults.AuthenticationScheme);
@@ -156,8 +186,65 @@ namespace SchoolNewspaperBlazorApp
                 await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                     principal);
 
+                // pierwsze logowanie: najpierw ustawienie własnego hasła
+                if (login.MustChangePassword)
+                {
+                    return Results.Redirect("/change-password");
+                }
+
                 // parametr wyświetla w panelu komunikat „Zalogowano pomyślnie"
                 return Results.Redirect("/adminPanel?zalogowano=1");
+            });
+
+            app.MapPost("/auth/change-password", async (
+                HttpContext context,
+                IAuthService authService,
+                ISessionRegistry sessions,
+                ILogger<Program> logger) =>
+            {
+                if (context.User.Identity?.IsAuthenticated != true)
+                {
+                    return Results.Redirect("/login");
+                }
+
+                if (!await IsAntiforgeryValidAsync(context))
+                {
+                    return Results.Redirect("/change-password");
+                }
+
+                var form = await context.Request.ReadFormAsync();
+                string email = context.User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
+
+                var result = await authService.ChangePasswordAsync(
+                    email,
+                    form["CurrentPassword"].ToString(),
+                    form["NewPassword"].ToString(),
+                    form["ConfirmPassword"].ToString());
+                if (result != ChangePasswordResult.Success)
+                {
+                    logger.LogWarning("Nieudana zmiana hasła ({Result}) z adresu {RemoteIp}.", result, context.Connection.RemoteIpAddress);
+                    return Results.Redirect($"/change-password?error={result}");
+                }
+
+                // po zmianie hasła kończymy wszystkie dotychczasowe sesje konta (także na innych urządzeniach)
+                // i logujemy tę przeglądarkę od nowa, już bez wymogu zmiany hasła
+                sessions.Revoke(context.User.FindFirst(SessionRegistry.SessionClaimType)?.Value);
+                sessions.RevokeAllForUser(email);
+
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, email),
+                    new Claim(SessionRegistry.SessionClaimType, sessions.Create(email))
+                };
+                var identity = new ClaimsIdentity(
+                    claims,
+                    CookieAuthenticationDefaults.AuthenticationScheme);
+
+                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(identity));
+
+                // parametr wyświetla w panelu komunikat „Hasło zostało zmienione"
+                return Results.Redirect("/adminPanel?haslo=1");
             });
 
             app.MapPost("/auth/logout", async (HttpContext context, ISessionRegistry sessions) =>
@@ -178,6 +265,15 @@ namespace SchoolNewspaperBlazorApp
 
             app.Run();
         }
+
+        // Ścieżki dostępne dla konta, które musi jeszcze zmienić hasło (strona zmiany hasła, wylogowanie, zasoby Blazora).
+        private static bool IsAllowedBeforePasswordChange(PathString path) =>
+            path.Equals("/change-password", StringComparison.OrdinalIgnoreCase)
+            || path.Equals("/auth/change-password", StringComparison.OrdinalIgnoreCase)
+            || path.Equals("/auth/logout", StringComparison.OrdinalIgnoreCase)
+            || path.Equals("/Error", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWithSegments("/_blazor", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWithSegments("/_framework", StringComparison.OrdinalIgnoreCase);
 
         private static async Task<bool> IsAntiforgeryValidAsync(HttpContext context)
         {

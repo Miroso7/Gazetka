@@ -13,5 +13,7 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Repository
         Task<bool> EmailExistsForOtherAsync(string email, int exceptUserId);
         // Zmienia tylko dane profilu (nigdy hasła). Zwraca false, gdy użytkownik nie istnieje.
         Task<bool> UpdateProfileAsync(int userId, string firstName, string lastName, string email, UserRole role);
+        // Zapisuje nowy hash hasła i zdejmuje wymóg zmiany hasła. Zwraca false, gdy użytkownik nie istnieje.
+        Task<bool> UpdatePasswordAsync(int userId, string passwordHash);
     }
 }

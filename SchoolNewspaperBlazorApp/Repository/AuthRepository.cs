@@ -98,5 +98,25 @@ namespace SchoolNewspaperBlazorApp.Repository
             _logger.LogDebug("Zaktualizowano profil użytkownika {UserId}.", userId);
             return true;
         }
+
+        public async Task<bool> UpdatePasswordAsync(int userId, string passwordHash)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user is null)
+            {
+                _logger.LogWarning("Nie można zmienić hasła: użytkownik {UserId} nie istnieje.", userId);
+                return false;
+            }
+
+            // celowo tylko te pola – reszta konta zostaje nietknięta
+            user.Password = passwordHash;
+            user.MustChangePassword = false;
+
+            await context.SaveChangesAsync();
+            _logger.LogDebug("Zapisano nowe hasło użytkownika {UserId}.", userId);
+            return true;
+        }
     }
 }
