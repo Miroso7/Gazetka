@@ -59,9 +59,8 @@ namespace SchoolNewspaperBlazorApp.Repository
 
             var rows = await context.Users
                 .AsNoTracking()
-                .OrderBy(u => u.LastName)
-                .ThenBy(u => u.FirstName)
-                .ThenBy(u => u.Email)
+                // stała kolejność (po Id), żeby edycja imienia, nazwiska czy roli nie przenosiła użytkownika na inne miejsce
+                .OrderBy(u => u.Id)
                 .Select(u => new
                 {
                     u.Id,

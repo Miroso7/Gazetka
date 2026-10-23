@@ -97,10 +97,10 @@ namespace SchoolNewspaperBlazorApp.Service
 
             var users = await _permissionRepository.GetUsersWithPermissionsAsync();
             var currentId = await _permissionRepository.GetUserIdAsync(await GetPrincipalAsync());
-            foreach (var user in users)
-            {
-                user.IsCurrentUser = user.UserId == currentId;
-            }
+            var viewerIsMaster = await IsMasterAsync();
+
+            // zalogowany nie widzi siebie, a kont master nie widzi nikt, kto sam nie jest masterem
+            users.RemoveAll(u => u.UserId == currentId || (u.IsMaster && !viewerIsMaster));
             return users;
         }
 

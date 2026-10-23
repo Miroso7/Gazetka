@@ -16,7 +16,8 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
         // Rzuca UnauthorizedAccessException, gdy użytkownik nie ma permisji.
         Task RequirePermissionAsync(EnumPermissions permission);
 
-        // Oba poniższe wymagają permisji ManageUser.
+        // Oba poniższe wymagają permisji ManageUser. Lista nie zawiera zalogowanego użytkownika ani kont master (chyba że zalogowany sam jest masterem).
+        // Kolejność jest stała (po Id).
         Task<List<UserWithPermissions>> GetUsersWithPermissionsAsync();
         Task SetPermissionAsync(int userId, EnumPermissions permission, bool granted);
 
