@@ -3967,3 +3967,335 @@ body:has(.lightbox) {
     .user-edit .confirm__actions {
         margin-top: 1.25rem;
     }
+
+
+/* =====================================================================
+   Karta artykułu i strona artykułu – dopracowanie wyglądu
+   Dopisane na końcu pliku, więc nadpisuje wcześniejsze warstwy.
+   Paleta bez zmian (biały / niebieski / granat), kroje jak wyżej.
+   ===================================================================== */
+
+:root {
+    --shadow-card: 0 1px 2px rgba(11, 31, 58, .05), 0 10px 28px -10px rgba(11, 31, 58, .14);
+    --shadow-card-hover: 0 2px 4px rgba(11, 31, 58, .05), 0 28px 52px -18px rgba(23, 105, 224, .32);
+}
+
+/* ---------- Karta: bryła i ruch ---------- */
+.article-card {
+    border-color: rgba(11, 31, 58, .08);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    transition: transform .4s var(--ease), box-shadow .4s var(--ease), border-color .4s var(--ease);
+}
+
+    .article-card:hover,
+    .article-card:focus-within {
+        transform: translateY(-6px);
+        border-color: rgba(23, 105, 224, .35);
+        box-shadow: var(--shadow-card-hover);
+    }
+
+.article-card--admin:hover,
+.article-card--admin:focus-within {
+    transform: none;
+    border-color: rgba(23, 105, 224, .3);
+    box-shadow: var(--shadow-card);
+}
+
+/* ---------- Zdjęcie, placeholder i odznaka ---------- */
+.article-card__img {
+    transition: transform .8s var(--ease);
+}
+
+.article-card:hover .article-card__img {
+    transform: scale(1.05);
+}
+
+.article-card__img-wrap:has(.article-card__placeholder) {
+    background: radial-gradient(circle at 18% 12%, rgba(23, 105, 224, .2), transparent 55%), linear-gradient(135deg, var(--blue-soft), #f7faff);
+}
+
+.article-card__placeholder {
+    color: var(--blue);
+    background: none;
+    opacity: .5;
+}
+
+    .article-card__placeholder .ico {
+        width: 3rem;
+        height: 3rem;
+    }
+
+.article-card__badge {
+    color: var(--blue-dark);
+    background: rgba(255, 255, 255, .94);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 6px 16px rgba(11, 31, 58, .2);
+}
+
+    .article-card__badge::before {
+        background: var(--blue);
+        box-shadow: 0 0 0 3px rgba(23, 105, 224, .2);
+    }
+
+/* ---------- Treść: etykieta typu jako „nadtytuł” gazety ---------- */
+.article-card__body {
+    padding: 1.35rem 1.6rem 1.5rem;
+}
+
+.article-card__type,
+.article-card__type--events,
+.article-card__type--announcements {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .75rem;
+    padding: 0;
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    color: var(--blue);
+    background: none;
+    border-radius: 0;
+}
+
+    .article-card__type::before {
+        content: "";
+        width: 1.15rem;
+        height: 2px;
+        background: currentColor;
+        border-radius: 2px;
+    }
+
+.article-card__type--events {
+    color: var(--blue-dark);
+}
+
+.article-card__type--announcements {
+    color: var(--navy);
+}
+
+.article-card__title {
+    margin-bottom: .65rem;
+    font-size: 1.42rem;
+    line-height: 1.2;
+}
+
+.article-card__text {
+    margin-bottom: 1.35rem;
+    font-size: .94rem;
+    line-height: 1.7;
+    color: #4a5d78;
+}
+
+/* ---------- Podpis: autor, data i czas czytania ---------- */
+.article-card__meta {
+    flex: 1;
+    gap: .75rem;
+    min-width: 0;
+    margin: 0;
+}
+
+.article-card__avatar {
+    width: 2.3rem;
+    height: 2.3rem;
+    font-size: .74rem;
+}
+
+.article-card__byline {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.3;
+}
+
+.article-card__author {
+    font-size: .86rem;
+    font-weight: 700;
+}
+
+.article-card__time {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    font-size: .76rem;
+    color: var(--muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* w panelu podpis stoi nad przyciskami, osobno od stopki */
+.article-card__body > .article-card__meta {
+    flex: none;
+    margin-bottom: 1.1rem;
+}
+
+.article-card__footer {
+    gap: 1rem;
+    padding-top: 1.1rem;
+}
+
+.article-card__more {
+    flex: none;
+}
+
+.article-card__arrow {
+    width: 2.1rem;
+    height: 2.1rem;
+    font-size: .95rem;
+}
+
+/* wyróżniony pierwszy artykuł */
+@media (min-width: 992px) {
+    .article-card--featured {
+        background: linear-gradient(135deg, var(--white) 50%, var(--blue-soft));
+    }
+
+        .article-card--featured .article-card__body {
+            padding: 2.4rem 2.6rem;
+        }
+
+        .article-card--featured .article-card__title {
+            font-size: 2.2rem;
+            line-height: 1.12;
+        }
+
+        .article-card--featured .article-card__text {
+            font-size: 1.04rem;
+        }
+}
+
+@media (max-width: 575.98px) {
+    .article-card {
+        border-radius: 18px;
+    }
+
+    .article-card__body {
+        padding: 1.15rem 1.25rem 1.3rem;
+    }
+}
+
+/* ---------- Strona artykułu: karta z kolorowym paskiem ---------- */
+article.ap {
+    padding-top: clamp(2rem, 5vw, 3.75rem);
+    background: linear-gradient(90deg, var(--navy), var(--blue) 60%, #5ea2ff) top / 100% 6px no-repeat, var(--white);
+    border-color: rgba(11, 31, 58, .08);
+    border-radius: 28px;
+    box-shadow: var(--shadow-card), 0 40px 80px -44px rgba(11, 31, 58, .3);
+}
+
+.ap-head {
+    margin-bottom: 2.25rem;
+}
+
+.ap-kicker {
+    margin-bottom: 1.15rem;
+    letter-spacing: .1em;
+}
+
+.ap-title {
+    margin-bottom: 1.6rem;
+    font-size: clamp(2.1rem, 5.2vw, 3.5rem);
+    line-height: 1.06;
+    letter-spacing: -.02em;
+}
+
+/* podpis autora: pasek między tytułem a treścią */
+.ap-meta {
+    padding: 1.1rem 0;
+    border-block: 1px solid var(--line);
+}
+
+.ap-avatar {
+    width: 3rem;
+    height: 3rem;
+    font-size: .92rem;
+}
+
+.ap-meta__author {
+    font-size: 1.02rem;
+}
+
+.ap-meta__sub {
+    font-size: .86rem;
+}
+
+/* ---------- Zdjęcie: wcięte, z zaokrągleniem ---------- */
+.ap-figure {
+    margin: 0 0 2.75rem;
+    border-radius: 20px;
+    box-shadow: 0 24px 48px -24px rgba(11, 31, 58, .4);
+}
+
+.ap-figure__img {
+    max-height: 32rem;
+}
+
+/* ---------- Treść: czytelna szerokość i szeryfowy wstęp ---------- */
+.ap-body {
+    max-width: 66ch;
+    font-size: 1.12rem;
+    line-height: 1.85;
+    color: #243652;
+}
+
+    .ap-body p {
+        margin-bottom: 1.6rem;
+    }
+
+.ap-lead {
+    font-family: var(--font-display);
+    font-size: 1.55rem;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--navy);
+}
+
+    .ap-lead::first-letter {
+        font-family: var(--font-display);
+        font-size: 3.4em;
+        font-weight: 700;
+    }
+
+/* ---------- Szczegóły i stopka ---------- */
+.ap-details {
+    margin-bottom: 2.25rem;
+    background: linear-gradient(180deg, var(--blue-soft), #f6f9ff);
+    border-radius: 16px;
+}
+
+.ap-foot {
+    margin-top: 3.5rem;
+    padding: 1.4rem 1.7rem;
+    background: linear-gradient(135deg, var(--bg), var(--blue-soft));
+    border-radius: 20px;
+}
+
+.ap-foot__name {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+@media (max-width: 575.98px) {
+    article.ap {
+        border-radius: 22px;
+    }
+
+    .ap-lead {
+        font-size: 1.28rem;
+    }
+
+    .ap-figure {
+        border-radius: 14px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .article-card:hover,
+    .article-card:focus-within,
+    .article-card:hover .article-card__img {
+        transform: none;
+    }
+}

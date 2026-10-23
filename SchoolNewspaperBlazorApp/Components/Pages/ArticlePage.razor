@@ -1,5 +1,6 @@
 ﻿@page "/article/{Id:int}"
 
+@using System.Globalization
 @using Microsoft.Extensions.Logging
 @using Microsoft.JSInterop
 @using SchoolNewspaperBlazorApp.Components.Components
@@ -83,7 +84,10 @@ else
                 <span class="ap-avatar" aria-hidden="true">@Initials</span>
                 <div class="ap-meta__text">
                     <span class="ap-meta__author">@article.Author</span>
-                    <span class="ap-meta__sub">@ReadingMinutes min czytania · @WordCount słów</span>
+                    <span class="ap-meta__sub">
+                        <time datetime="@(article.PublishDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))">@(article.PublishDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture))</time>
+                        · @ReadingMinutes min czytania · @WordCount słów
+                    </span>
                 </div>
 
                 <div class="ap-actions">
@@ -97,9 +101,6 @@ else
                         {
                             <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" /><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" /></svg>
                         }
-                    </button>
-                    <button type="button" class="icon-btn ap-action" @onclick="PrintAsync" aria-label="Drukuj artykuł" title="Drukuj">
-                        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M6 14h12v8H6z" /></svg>
                     </button>
                 </div>
             </div>
@@ -260,12 +261,6 @@ else
         {
             // kliknięto ponownie – timer zostanie odświeżony
         }
-    }
-
-    private async Task PrintAsync()
-    {
-        try { await JS.InvokeVoidAsync("print"); }
-        catch (JSException) { }
     }
 
     public void Dispose()

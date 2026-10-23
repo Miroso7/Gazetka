@@ -1,4 +1,5 @@
-﻿@using SchoolNewspaperBlazorApp.Data
+﻿@using System.Globalization
+@using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 
@@ -30,7 +31,9 @@
                 }
                 else
                 {
-                    <div class="article-card__placeholder" aria-hidden="true">📰</div>
+                    <div class="article-card__placeholder" aria-hidden="true">
+                        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" /><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z" /></svg>
+                    </div>
                 }
 
                 @if (isNewest)
@@ -45,13 +48,6 @@
                     <span class="article-card__type article-card__type--@article.Type.CssName()">@article.Type.Label()</span>
                 }
 
-                <div class="article-card__meta">
-                    <span class="article-card__avatar" aria-hidden="true">@Initials(article.Author)</span>
-                    <span class="article-card__author">@article.Author</span>
-                    <span class="article-card__dot" aria-hidden="true"></span>
-                    <span class="article-card__time">@ReadMinutes(article.Text) min czytania</span>
-                </div>
-
                 <h3 class="article-card__title">
                     @if (permissions)
                     {
@@ -64,6 +60,11 @@
                 </h3>
 
                 <p class="article-card__text">@Excerpt(article.Text)</p>
+
+                @if (permissions)
+                {
+                    @Byline(article)
+                }
 
                 <div class="article-card__footer">
                     @if (permissions)
@@ -92,8 +93,9 @@
                     }
                     else
                     {
+                        @Byline(article)
                         <span class="article-card__more" aria-hidden="true">
-                            Czytaj więcej <span class="article-card__arrow">→</span>
+                            <span class="article-card__arrow">→</span>
                         </span>
                     }
                 </div>
@@ -126,6 +128,18 @@
 
     private readonly Dictionary<int, string?> imageUrls = new();
     private int? confirmId;
+
+    // autor, data publikacji i czas czytania (w trybie publicznym w stopce karty, w panelu nad przyciskami)
+    private RenderFragment Byline(Article article) => @<div class="article-card__meta">
+        <span class="article-card__avatar" aria-hidden="true">@Initials(article.Author)</span>
+        <span class="article-card__byline">
+            <span class="article-card__author">@article.Author</span>
+            <span class="article-card__time">
+                <time datetime="@(article.PublishDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))">@(article.PublishDate.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture))</time>
+                · @ReadMinutes(article.Text) min czytania
+            </span>
+        </span>
+    </div>;
 
     private int NewestId => Articles.Count == 0 ? -1 : Articles.Max(a => a.Id);
 
