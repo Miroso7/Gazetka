@@ -21,7 +21,7 @@
 <div class="panel perm-panel">
     <div class="a-toolbar">
         <div class="field">
-            <input class="field__input perm-search" type="search" placeholder="Szukaj użytkownika (login lub e-mail)..."
+            <input class="field__input perm-search" type="search" placeholder="Szukaj użytkownika (imię, nazwisko lub e-mail)..."
                    aria-label="Szukaj użytkownika"
                    @bind="search" @bind:event="oninput" />
         </div>
@@ -56,8 +56,15 @@
                 {
                     <li class="perm-row" @key="u.UserId">
                         <div class="perm-row__user">
-                            <span class="perm-row__login">@u.Login</span>
-                            <span class="perm-row__email">@u.Email</span>
+                            @if (u.FullName.Length > 0)
+                            {
+                                <span class="perm-row__name">@u.FullName</span>
+                                <span class="perm-row__email">@u.Email</span>
+                            }
+                            else
+                            {
+                                <span class="perm-row__name">@u.Email</span>
+                            }
                         </div>
                         <div class="perm-row__chips">
                             @foreach (var p in PermissionInfo.All)
@@ -104,7 +111,7 @@
     private IEnumerable<UserWithPermissions> Filtered =>
         string.IsNullOrWhiteSpace(search)
             ? users
-            : users.Where(u => u.Login.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+            : users.Where(u => u.FullName.Contains(search, StringComparison.CurrentCultureIgnoreCase)
                             || u.Email.Contains(search, StringComparison.CurrentCultureIgnoreCase));
 
     private async Task LoadAsync()
@@ -135,8 +142,8 @@
             await PermissionService.SetPermissionAsync(user.UserId, permission, granted);
             if (granted) user.Permissions.Add(permission); else user.Permissions.Remove(permission);
             info = granted
-                ? $"Nadano „{PermissionInfo.Label(permission)}” użytkownikowi {user.Login}."
-                : $"Odebrano „{PermissionInfo.Label(permission)}” użytkownikowi {user.Login}.";
+                ? $"Nadano „{PermissionInfo.Label(permission)}” użytkownikowi {user.DisplayName}."
+                : $"Odebrano „{PermissionInfo.Label(permission)}” użytkownikowi {user.DisplayName}.";
             await OnChanged.InvokeAsync();
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
@@ -165,7 +172,7 @@
                 await PermissionService.SetPermissionAsync(user.UserId, p, true);
                 user.Permissions.Add(p);
             }
-            info = $"Nadano wszystkie uprawnienia użytkownikowi {user.Login}.";
+            info = $"Nadano wszystkie uprawnienia użytkownikowi {user.DisplayName}.";
             await OnChanged.InvokeAsync();
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)

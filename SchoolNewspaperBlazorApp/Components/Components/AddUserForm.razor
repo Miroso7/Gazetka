@@ -8,8 +8,11 @@
     <h1 class="add-article-form__title">Dodaj użytkownika</h1>
 
     <form @onsubmit="AddUserAsync" @onsubmit:preventDefault>
-        <label class="form-label">Login</label>
-        <input @bind="Login" class="form-control mb-3" placeholder="Login" />
+        <label class="form-label">Imię</label>
+        <input @bind="FirstName" class="form-control mb-3" placeholder="Imię" />
+
+        <label class="form-label">Nazwisko</label>
+        <input @bind="LastName" class="form-control mb-3" placeholder="Nazwisko" />
 
         <label class="form-label">E-mail</label>
         <input @bind="Email" type="email" class="form-control mb-3" placeholder="E-Mail" />
@@ -23,7 +26,8 @@
 
 @code {
 
-    public string Login { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
 
@@ -37,8 +41,8 @@
     {
         try
         {
-            await AuthService.AddUserAsync(Login, Password, Email);
-            Login = Password = Email = string.Empty;
+            await AuthService.AddUserAsync(FirstName, LastName, Password, Email);
+            FirstName = LastName = Password = Email = string.Empty;
             Notify.Show("Dodano użytkownika.");
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)

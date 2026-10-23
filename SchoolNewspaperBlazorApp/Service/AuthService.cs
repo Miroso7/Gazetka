@@ -24,13 +24,18 @@ namespace SchoolNewspaperBlazorApp.Service
             _permissionService = permissionService;
         }
 
-        public async Task AddUserAsync(string login, string password, string email)
+        public async Task AddUserAsync(string firstName, string lastName, string password, string email)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.AddUser);
 
-            if (string.IsNullOrWhiteSpace(login))
+            if (string.IsNullOrWhiteSpace(firstName))
             {
-                throw new InvalidOperationException("Login nie może być pusty.");
+                throw new InvalidOperationException("Imię nie może być puste.");
+            }
+
+            if (string.IsNullOrWhiteSpace(lastName))
+            {
+                throw new InvalidOperationException("Nazwisko nie może być puste.");
             }
 
             if (string.IsNullOrWhiteSpace(email))
@@ -43,13 +48,9 @@ namespace SchoolNewspaperBlazorApp.Service
                 throw new InvalidOperationException("Hasło nie może być puste.");
             }
 
-            login = login.Trim();
+            firstName = firstName.Trim();
+            lastName = lastName.Trim();
             email = email.Trim();
-
-            if (await _authRepository.LoginExistsAsync(login))
-            {
-                throw new InvalidOperationException("Użytkownik o takim loginie już istnieje.");
-            }
 
             if (await _authRepository.EmailExistsAsync(email))
             {
@@ -58,7 +59,8 @@ namespace SchoolNewspaperBlazorApp.Service
 
             var user = new User
             {
-                Login = login,
+                FirstName = firstName,
+                LastName = lastName,
                 Password = HashPassword(password),
                 Email = email,
                 RegisterDate = DateTime.Now

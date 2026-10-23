@@ -41,8 +41,13 @@ namespace SchoolNewspaperBlazorApp.Data
     public class UserWithPermissions
     {
         public int UserId { get; set; }
-        public string Login { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
         public string Email { get; set; } = "";
         public HashSet<EnumPermissions> Permissions { get; set; } = new();
+
+        public string FullName => $"{FirstName} {LastName}".Trim();
+        // imię i nazwisko, a gdy ich brak (starsze konta) – adres e-mail
+        public string DisplayName => FullName.Length > 0 ? FullName : Email;
     }
 }

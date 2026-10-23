@@ -59,11 +59,14 @@ namespace SchoolNewspaperBlazorApp.Repository
 
             var rows = await context.Users
                 .AsNoTracking()
-                .OrderBy(u => u.Login)
+                .OrderBy(u => u.LastName)
+                .ThenBy(u => u.FirstName)
+                .ThenBy(u => u.Email)
                 .Select(u => new
                 {
                     u.Id,
-                    u.Login,
+                    u.FirstName,
+                    u.LastName,
                     u.Email,
                     Names = u.UserPermission.Select(up => up.Permission.PermissionName).ToList()
                 })
@@ -72,7 +75,8 @@ namespace SchoolNewspaperBlazorApp.Repository
             return rows.Select(r => new UserWithPermissions
             {
                 UserId = r.Id,
-                Login = r.Login,
+                FirstName = r.FirstName,
+                LastName = r.LastName,
                 Email = r.Email,
                 Permissions = r.Names.ToHashSet()
             }).ToList();

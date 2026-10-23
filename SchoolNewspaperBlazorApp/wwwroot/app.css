@@ -3828,3 +3828,11 @@ body:has(.lightbox) {
         transition: none;
     }
 }
+
+
+/* ---------- Panel uprawnień: imię i nazwisko użytkownika ---------- */
+.perm-row__name {
+    font-weight: 700;
+    color: var(--navy);
+    overflow-wrap: anywhere;
+}
