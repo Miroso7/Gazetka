@@ -1,6 +1,7 @@
 ﻿@page "/"
 @using SchoolNewspaperBlazorApp.Components.Components
 @using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 @inject IArticleService articleService
 
@@ -28,19 +29,46 @@
 </section>
 
 <div class="section-head" id="aktualnosci">
-    <h2 class="section-title">Aktualności</h2>
-    <p class="section-sub">Najnowsze artykuły z życia szkoły</p>
+    <h2 class="section-title">@(selectedType?.Label() ?? "Aktualności")</h2>
+    <p class="section-sub">@(selectedType?.Description() ?? "Najnowsze artykuły z życia szkoły")</p>
 </div>
 
-<ArticleCard Articles="articles" permissions="false" />
+<nav class="type-tabs" aria-label="Kategorie artykułów">
+    <div class="type-tabs__list">
+        <a class="type-tab @(selectedType is null ? "is-active" : "")" href="/#aktualnosci"
+           aria-current="@(selectedType is null ? "page" : null)">Wszystkie</a>
+        @foreach (var type in Enum.GetValues<ArticleType>())
+        {
+            <a class="type-tab @(selectedType == type ? "is-active" : "")" href="@($"/?typ={type}#aktualnosci")"
+               aria-current="@(selectedType == type ? "page" : null)">@type.Label()</a>
+        }
+    </div>
+</nav>
+
+<ArticleCard Articles="articles"
+             permissions="false"
+             ShowType="@(selectedType is null)"
+             EmptyText="@(selectedType?.EmptyText() ?? "Nie ma jeszcze żadnych artykułów.")" />
 
 
 @code
 {
+    // wybrana zakładka, np. /?typ=Events (brak = wszystkie artykuły)
+    [SupplyParameterFromQuery(Name = "typ")]
+    public string? TypeQuery { get; set; }
+
     public List<Article> articles = new List<Article>();
 
-    protected override async Task OnInitializedAsync()
+    private ArticleType? selectedType;
+
+    protected override async Task OnParametersSetAsync()
     {
-        articles = await articleService.GetAllArticlesAsync();
+        selectedType = Enum.TryParse<ArticleType>(TypeQuery, true, out var type) && Enum.IsDefined(type)
+            ? type
+            : null;
+
+        articles = selectedType is { } t
+            ? await articleService.GetArticlesByTypeAsync(t)
+            : await articleService.GetAllArticlesAsync();
     }
 }

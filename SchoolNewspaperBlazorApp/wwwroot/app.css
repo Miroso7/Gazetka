@@ -3765,3 +3765,66 @@ body:has(.lightbox) {
         border-color: var(--blue);
         box-shadow: 0 0 0 3px rgba(23, 105, 224, .18);
     }
+
+
+/* ---------- Strona główna: pasek zakładek (filtr typów artykułów) ---------- */
+.type-tabs {
+    margin: 1.25rem 0 .25rem;
+}
+
+.type-tabs__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    padding: .5rem;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.type-tab {
+    padding: .5rem 1.05rem;
+    font-size: .9rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--navy);
+    text-decoration: none;
+    border-radius: 999px;
+    transition: color .2s var(--ease), background .2s var(--ease), box-shadow .2s var(--ease);
+}
+
+    .type-tab:hover {
+        color: var(--blue-dark);
+        background: var(--blue-soft);
+    }
+
+    .type-tab:focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 2px;
+    }
+
+    .type-tab.is-active,
+    .type-tab.is-active:hover {
+        color: var(--white);
+        background: var(--blue);
+        box-shadow: 0 4px 12px rgba(23, 105, 224, .3);
+    }
+
+@media (max-width: 575.98px) {
+    .type-tabs__list {
+        gap: .3rem;
+        padding: .4rem;
+    }
+
+    .type-tab {
+        padding: .45rem .8rem;
+        font-size: .84rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .type-tab {
+        transition: none;
+    }
+}
