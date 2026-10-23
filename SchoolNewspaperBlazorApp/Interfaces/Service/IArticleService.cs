@@ -8,8 +8,10 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
         // Maksymalna liczba zdjęć w galerii jednego artykułu (nie licząc głównego zdjęcia).
         const int MaxGalleryImages = 12;
 
+        // details: dodatkowe pola zależne od typu artykułu (klucze z ArticleFields.For(type))
         // galleryFileIds: Id wgranych wcześniej zdjęć, które trafiają do galerii artykułu
-        Task AddArticleAsync(string title, string text, string author, ArticleType type, int id, IReadOnlyList<int>? galleryFileIds = null);
+        Task AddArticleAsync(string title, string text, string author, ArticleType type, int id, IReadOnlyList<int>? galleryFileIds = null,
+            IReadOnlyDictionary<string, string>? details = null);
         Task<List<Article>> GetAllArticlesAsync();
         // artykuły jednego typu (osobna zakładka), od najnowszych
         Task<List<Article>> GetArticlesByTypeAsync(ArticleType type);
@@ -17,7 +19,8 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
         Task<List<ArticleImageDto>> GetArticleImagesAsync(int articleId);
         // addedFileIds: nowe zdjęcia do galerii; removedImageIds: Id wpisów galerii (ArticleImageDto.Id) do usunięcia
         Task UpdateArticleAsync(int id, string title, string text, string author, ArticleType type, int fileId,
-            IReadOnlyList<int>? addedFileIds = null, IReadOnlyList<int>? removedImageIds = null);
+            IReadOnlyList<int>? addedFileIds = null, IReadOnlyList<int>? removedImageIds = null,
+            IReadOnlyDictionary<string, string>? details = null);
         Task RemoveArticleByIdAsync(int id);
     }
 }

@@ -71,6 +71,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             existing.Text = article.Text;
             existing.Author = article.Author;
             existing.Type = article.Type;
+            existing.Details = article.Details;
             existing.FileId = article.FileId;
 
             // galeria: usuwamy tylko zdjęcia tego artykułu

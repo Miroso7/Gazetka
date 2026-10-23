@@ -25,11 +25,13 @@ namespace SchoolNewspaperBlazorApp.Service
             _fileService = fileService;
             _logger = logger;
         }
-        public async Task AddArticleAsync(string title, string text, string author, ArticleType type, int fileId, IReadOnlyList<int>? galleryFileIds = null)
+        public async Task AddArticleAsync(string title, string text, string author, ArticleType type, int fileId, IReadOnlyList<int>? galleryFileIds = null,
+            IReadOnlyDictionary<string, string>? details = null)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.AddArticle);
             ValidateArticleFields(title, text);
             ValidateType(type);
+            var detailsJson = ArticleFields.ToJson(type, details);
             var gallery = galleryFileIds ?? Array.Empty<int>();
             ValidateGalleryCount(gallery.Count);
             var article = new Article
@@ -39,6 +41,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 Author = author?.Trim() ?? string.Empty,
                 PublishDate = DateTime.Now,
                 Type = type,
+                Details = detailsJson,
                 FileId = fileId,
                 // artykuł i jego galeria zapisują się razem, w jednej transakcji
                 Images = gallery.Select(galleryFileId => new ArticleImage { FileId = galleryFileId }).ToList()
@@ -67,7 +70,8 @@ namespace SchoolNewspaperBlazorApp.Service
             return await _articleRepository.GetArticleImagesAsync(articleId);
         }
         public async Task UpdateArticleAsync(int id, string title, string text, string author, ArticleType type, int fileId,
-            IReadOnlyList<int>? addedFileIds = null, IReadOnlyList<int>? removedImageIds = null)
+            IReadOnlyList<int>? addedFileIds = null, IReadOnlyList<int>? removedImageIds = null,
+            IReadOnlyDictionary<string, string>? details = null)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.EditArticle);
             if (id <= 0)
@@ -76,6 +80,7 @@ namespace SchoolNewspaperBlazorApp.Service
             }
             ValidateArticleFields(title, text);
             ValidateType(type);
+            var detailsJson = ArticleFields.ToJson(type, details);
 
             var added = addedFileIds ?? Array.Empty<int>();
             var removed = removedImageIds ?? Array.Empty<int>();
@@ -93,6 +98,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 Text = text.Trim(),
                 Author = author?.Trim() ?? string.Empty,
                 Type = type,
+                Details = detailsJson,
                 FileId = fileId
             };
             var removedFileIds = await _articleRepository.UpdateArticleAsync(article, added, removed);

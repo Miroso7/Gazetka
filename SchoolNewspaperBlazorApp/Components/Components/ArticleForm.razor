@@ -30,7 +30,7 @@
 
     <form @onsubmit="SaveArticle" @onsubmit:preventDefault>
         <label class="form-label">Kategoria *</label>
-        <select @bind="type" class="form-select mb-3">
+        <select @bind="type" @bind:after="OnTypeChanged" class="form-select mb-3">
             @foreach (var option in Enum.GetValues<ArticleType>())
             {
                 <option value="@option">@option.Label()</option>
@@ -42,6 +42,51 @@
 
         <label class="form-label">Treść *</label>
         <textarea @bind="text" class="form-control mb-3" rows="6" placeholder="Treść artykułu..."></textarea>
+
+        @if (typeFields.Count > 0)
+        {
+            <fieldset class="type-fields" @key="type">
+                <legend class="type-fields__title">Szczegóły: @type.Label()</legend>
+                <div class="type-fields__grid">
+                    @foreach (var f in typeFields)
+                    {
+                        <div class="type-fields__item @(f.Kind == ArticleFieldKind.Checkbox ? "type-fields__item--wide" : "")" @key="f.Key">
+                            @if (f.Kind == ArticleFieldKind.Checkbox)
+                            {
+                                <label class="type-check">
+                                    <input type="checkbox"
+                                           checked="@IsChecked(f.Key)"
+                                           @onchange="e => SetChecked(f.Key, e.Value)" />
+                                    <span>@f.Label</span>
+                                </label>
+                            }
+                            else
+                            {
+                                <label class="form-label">@(f.Label + (f.Required ? " *" : ""))</label>
+                                @if (f.Kind == ArticleFieldKind.Select)
+                                {
+                                    <select class="form-select mb-3" value="@GetDetail(f.Key)"
+                                            @onchange="e => SetDetail(f.Key, e.Value?.ToString())">
+                                        <option value="">Wybierz...</option>
+                                        @foreach (var option in f.Options ?? Array.Empty<string>())
+                                        {
+                                            <option value="@option">@option</option>
+                                        }
+                                    </select>
+                                }
+                                else
+                                {
+                                    <input type="@f.InputType" class="form-control mb-3" placeholder="@f.Placeholder"
+                                           min="@MinFor(f)"
+                                           value="@GetDetail(f.Key)"
+                                           @onchange="e => SetDetail(f.Key, e.Value?.ToString())" />
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            </fieldset>
+        }
 
         <label class="form-label">Autor</label>
         <input @bind="author" class="form-control mb-4" placeholder="Imię i nazwisko" />
@@ -93,6 +138,8 @@
     private string text = "";
     private string author = "";
     private ArticleType type = ArticleType.News;
+    // dodatkowe pola zależne od typu artykułu (klucz pola -> wartość)
+    private Dictionary<string, string> details = new();
     private string? previewImage;
     private bool added;
     private string? errorMessage;
@@ -132,6 +179,26 @@
 
     private bool IsEditing => ArticleToEdit != null;
 
+    private IReadOnlyList<ArticleField> typeFields => ArticleFields.For(type);
+
+    private string GetDetail(string key) => details.TryGetValue(key, out var value) ? value : "";
+
+    private void SetDetail(string key, string? value) => details[key] = value ?? "";
+
+    // pole liczbowe nie przyjmuje wartości ujemnych
+    private static string? MinFor(ArticleField f) => f.Kind == ArticleFieldKind.Number ? "0" : null;
+
+    private bool IsChecked(string key) => GetDetail(key) == "true";
+
+    private void SetChecked(string key, object? value) => details[key] = value is true ? "true" : "";
+
+    // inny typ ma inne pola, więc wpisane wartości czyścimy
+    private void OnTypeChanged()
+    {
+        details.Clear();
+        errorMessage = null;
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         if (ArticleToEdit is null || loadedArticleId == ArticleToEdit.Id) return;
@@ -141,6 +208,7 @@
         text = ArticleToEdit.Text ?? "";
         author = ArticleToEdit.Author ?? "";
         type = ArticleToEdit.Type;
+        details = ArticleFields.Parse(ArticleToEdit.Details);
         existingFileId = ArticleToEdit.FileId;
         previewImage = null;
 
@@ -283,6 +351,9 @@
             return;
         }
 
+        // pola zależne od typu sprawdzamy teraz, żeby nie wgrywać zdjęć, gdy formularz jest niepoprawny
+        ArticleFields.ToJson(type, details);
+
         // zdjęcie jest wymagane: przy dodawaniu trzeba wybrać plik,
         // przy edycji wystarczy dotychczasowe zdjęcie albo nowe
         var hasPhoto = file != null || (IsEditing && existingFileId > 0);
@@ -306,7 +377,7 @@
             {
                 fileId = await fileService.UploadImage(file);
             }
-            await articleService.UpdateArticleAsync(ArticleToEdit!.Id, title, text, author, type, fileId, galleryFileIds, removedImageIds);
+            await articleService.UpdateArticleAsync(ArticleToEdit!.Id, title, text, author, type, fileId, galleryFileIds, removedImageIds, details);
             file = null;
             await OnEdited.InvokeAsync();
             return;
@@ -317,8 +388,9 @@
         {
             id = await fileService.UploadImage(file);
         }
-        await articleService.AddArticleAsync(title, text, author, type, id, galleryFileIds);
+        await articleService.AddArticleAsync(title, text, author, type, id, galleryFileIds, details);
         title = text = author = "";
+        details = new();
         previewImage = null;
         stagedPhotos.Clear();
         galleryInputKey++;

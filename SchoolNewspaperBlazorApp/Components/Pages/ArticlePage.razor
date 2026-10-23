@@ -110,6 +110,19 @@ else
             </figure>
         }
 
+        @if (Details.Count > 0)
+        {
+            <dl class="ap-details">
+                @foreach (var (label, value) in Details)
+                {
+                    <div class="ap-details__item">
+                        <dt>@label</dt>
+                        <dd>@value</dd>
+                    </div>
+                }
+            </dl>
+        }
+
         <div class="ap-body">
             @for (var i = 0; i < Paragraphs.Count; i++)
             {
@@ -147,6 +160,8 @@ else
     private IReadOnlyList<string> Paragraphs { get; set; } = Array.Empty<string>();
     private int WordCount { get; set; }
     private int ReadingMinutes => Math.Max(1, (int)Math.Ceiling(WordCount / 200.0));
+    // pola zależne od typu artykułu (data, miejsce itp.) wypełnione w formularzu
+    private List<(string Label, string Value)> Details => article is null ? new() : ArticleFields.Display(article);
 
     private string Excerpt
     {
