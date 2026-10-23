@@ -82,6 +82,14 @@
                         </div>
                         <div class="perm-row__actions">
                             <button type="button" class="link-btn" @onclick="() => GrantAllAsync(u)">Nadaj wszystkie</button>
+                            @if (u.IsMaster)
+                            {
+                                <span class="perm-row__badge">Master</span>
+                            }
+                            else if (!u.IsCurrentUser)
+                            {
+                                <button type="button" class="link-btn link-btn--danger" @onclick="() => pendingDelete = u">Usuń użytkownika</button>
+                            }
                         </div>
                     </li>
                 }
@@ -90,6 +98,26 @@
         }
     }
 </div>
+
+@if (pendingDelete != null)
+{
+    <div class="confirm">
+        <div class="confirm__scrim" @onclick="CancelDelete"></div>
+        <div class="confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-user-title">
+            <div class="confirm__icon">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" /></svg>
+            </div>
+            <h2 id="confirm-user-title" class="confirm__title">Usunąć użytkownika?</h2>
+            <p class="confirm__text">Konto „@pendingDelete.DisplayName” zostanie trwale usunięte razem z uprawnieniami. Tej operacji nie można cofnąć.</p>
+            <div class="confirm__actions">
+                <button type="button" class="btn btn-outline-primary" @onclick="CancelDelete" disabled="@deleting">Anuluj</button>
+                <button type="button" class="btn btn-danger-solid" @onclick="ConfirmDeleteAsync" disabled="@deleting">
+                    @(deleting ? "Usuwanie..." : "Usuń")
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     // wywoływane po każdej zmianie, żeby panel mógł odświeżyć uprawnienia zalogowanej osoby
@@ -102,6 +130,8 @@
     private string search = "";
     private string? error;
     private string? info;
+    private UserWithPermissions? pendingDelete;
+    private bool deleting;
 
     protected override async Task OnInitializedAsync()
     {
@@ -159,6 +189,42 @@
         finally
         {
             busy.Remove(key);
+        }
+    }
+
+    private void CancelDelete()
+    {
+        if (!deleting) pendingDelete = null;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (pendingDelete is null) return;
+
+        var user = pendingDelete;
+        deleting = true;
+        error = info = null;
+        try
+        {
+            await PermissionService.DeleteUserAsync(user.UserId);
+            users.Remove(user);
+            info = $"Usunięto użytkownika {user.DisplayName}.";
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            error = ex.Message;
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            error = "Nie udało się usunąć użytkownika. Spróbuj ponownie.";
+            await LoadAsync();
+        }
+        finally
+        {
+            deleting = false;
+            pendingDelete = null;
         }
     }
 

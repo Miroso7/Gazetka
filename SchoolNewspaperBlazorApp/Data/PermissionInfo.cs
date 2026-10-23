@@ -46,6 +46,10 @@ namespace SchoolNewspaperBlazorApp.Data
         public string Email { get; set; } = "";
         public HashSet<EnumPermissions> Permissions { get; set; } = new();
 
+        // konto master i konto zalogowanego użytkownika nie mogą zostać usunięte z panelu
+        public bool IsMaster => Permissions.Contains(EnumPermissions.Master);
+        public bool IsCurrentUser { get; set; }
+
         public string FullName => $"{FirstName} {LastName}".Trim();
         // imię i nazwisko, a gdy ich brak (starsze konta) – adres e-mail
         public string DisplayName => FullName.Length > 0 ? FullName : Email;

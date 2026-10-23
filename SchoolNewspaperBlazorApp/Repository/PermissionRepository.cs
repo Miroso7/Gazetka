@@ -82,6 +82,31 @@ namespace SchoolNewspaperBlazorApp.Repository
             }).ToList();
         }
 
+        public async Task<bool> UserHasPermissionAsync(int userId, EnumPermissions permission)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.UserPermissions
+                .AnyAsync(up => up.UserId == userId && up.Permission.PermissionName == permission);
+        }
+
+        public async Task<bool> DeleteUserAsync(int userId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var user = await context.Users
+                .Include(u => u.UserPermission)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+            if (user is null)
+            {
+                return false;
+            }
+
+            context.Users.Remove(user);
+            await context.SaveChangesAsync();
+            return true;
+        }
+
         public async Task SetPermissionAsync(int userId, EnumPermissions permission, bool granted)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();

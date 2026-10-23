@@ -16,5 +16,8 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
         // Oba poniższe wymagają permisji ManageUser.
         Task<List<UserWithPermissions>> GetUsersWithPermissionsAsync();
         Task SetPermissionAsync(int userId, EnumPermissions permission, bool granted);
+
+        // Usuwanie użytkownika: tylko master; nie można usunąć siebie ani innego konta master.
+        Task DeleteUserAsync(int userId);
     }
 }

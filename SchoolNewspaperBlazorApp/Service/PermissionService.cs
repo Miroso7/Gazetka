@@ -89,7 +89,38 @@ namespace SchoolNewspaperBlazorApp.Service
         public async Task<List<UserWithPermissions>> GetUsersWithPermissionsAsync()
         {
             await RequirePermissionAsync(EnumPermissions.ManageUser);
-            return await _permissionRepository.GetUsersWithPermissionsAsync();
+
+            var users = await _permissionRepository.GetUsersWithPermissionsAsync();
+            var currentId = await _permissionRepository.GetUserIdAsync(await GetPrincipalAsync());
+            foreach (var user in users)
+            {
+                user.IsCurrentUser = user.UserId == currentId;
+            }
+            return users;
+        }
+
+        public async Task DeleteUserAsync(int userId)
+        {
+            if (!await IsMasterAsync())
+            {
+                throw new UnauthorizedAccessException("Tylko master może usuwać użytkowników.");
+            }
+
+            var currentId = await _permissionRepository.GetUserIdAsync(await GetPrincipalAsync());
+            if (userId == currentId)
+            {
+                throw new InvalidOperationException("Nie możesz usunąć własnego konta.");
+            }
+
+            if (await _permissionRepository.UserHasPermissionAsync(userId, EnumPermissions.Master))
+            {
+                throw new InvalidOperationException("Nie można usunąć konta master.");
+            }
+
+            if (!await _permissionRepository.DeleteUserAsync(userId))
+            {
+                throw new InvalidOperationException("Nie znaleziono użytkownika.");
+            }
         }
 
         public async Task SetPermissionAsync(int userId, EnumPermissions permission, bool granted)
