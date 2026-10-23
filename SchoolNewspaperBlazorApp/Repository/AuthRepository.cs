@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SchoolNewspaperBlazorApp.Data;
+using SchoolNewspaperBlazorApp.Data.Enums;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
 
 namespace SchoolNewspaperBlazorApp.Repository
@@ -44,6 +45,51 @@ namespace SchoolNewspaperBlazorApp.Repository
 
             context.Users.Update(user);
             await context.SaveChangesAsync();
+        }
+
+        public async Task<UserProfile?> GetProfileAsync(int userId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.Users
+                .AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => new UserProfile
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Email = u.Email,
+                    Role = u.Role
+                })
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<bool> EmailExistsForOtherAsync(string email, int exceptUserId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.Users.AnyAsync(u => u.Email == email && u.Id != exceptUserId);
+        }
+
+        public async Task<bool> UpdateProfileAsync(int userId, string firstName, string lastName, string email, UserRole role)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user is null)
+            {
+                return false;
+            }
+
+            // celowo tylko te pola – hasło zostaje nietknięte
+            user.FirstName = firstName;
+            user.LastName = lastName;
+            user.Email = email;
+            user.Role = role;
+
+            await context.SaveChangesAsync();
+            return true;
         }
     }
 }

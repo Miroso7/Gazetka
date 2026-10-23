@@ -1,0 +1,89 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@using SchoolNewspaperBlazorApp.Service
+@inject IAuthService AuthService
+@inject NotificationService Notify
+
+<div class="add-article-form">
+    <h1 class="add-article-form__title">Moje konto</h1>
+
+    @if (loading)
+    {
+        <div class="skel-list"><div class="skel"></div><div class="skel"></div></div>
+    }
+    else if (profile is null)
+    {
+        <div class="auth-alert" role="alert">Nie udało się wczytać danych konta.</div>
+    }
+    else
+    {
+        <form @onsubmit="SaveAsync" @onsubmit:preventDefault>
+            <label class="form-label">Imię</label>
+            <input @bind="firstName" class="form-control mb-3" placeholder="Imię" />
+
+            <label class="form-label">Nazwisko</label>
+            <input @bind="lastName" class="form-control mb-3" placeholder="Nazwisko" />
+
+            <label class="form-label">E-mail</label>
+            <input value="@profile.Email" class="form-control mb-1" disabled />
+            <div class="form-text mb-3">Adres e-mail służy do logowania i nie można go zmienić.</div>
+
+            <label class="form-label">Rola</label>
+            <input value="@profile.Role.Label()" class="form-control mb-1" disabled />
+            <div class="form-text mb-4">Rolę może zmienić tylko master.</div>
+
+            <button type="submit" class="btn btn-primary w-100" disabled="@saving">
+                @(saving ? "Zapisywanie..." : "Zapisz zmiany")
+            </button>
+        </form>
+    }
+</div>
+
+@code {
+    private UserProfile? profile;
+    private string firstName = "";
+    private string lastName = "";
+    private bool loading = true;
+    private bool saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            profile = await AuthService.GetMyProfileAsync();
+            firstName = profile?.FirstName ?? "";
+            lastName = profile?.LastName ?? "";
+        }
+        catch (Exception)
+        {
+            profile = null;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (profile is null) return;
+
+        saving = true;
+        try
+        {
+            await AuthService.UpdateUserAsync(profile.Id, firstName, lastName, profile.Email, profile.Role);
+            profile.FirstName = firstName.Trim();
+            profile.LastName = lastName.Trim();
+            Notify.Show("Zapisano zmiany.");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            Notify.Show(ex.Message, NotificationType.Error);
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

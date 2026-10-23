@@ -56,6 +56,9 @@ else
                         @Icon("shield") <span>Uprawnienia</span>
                     </button>
                 }
+                <button class="admin-nav__item @Active(5)" aria-current="@(view == 5 ? "page" : null)" @onclick="() => SetView(5)">
+                    @Icon("user") <span>Moje konto</span>
+                </button>
                 <form method="post" action="/auth/logout" style="display: contents;">
                     <AntiforgeryToken />
                     <button type="submit" class="admin-nav__item">
@@ -261,6 +264,10 @@ else
             else if (view == 4 && Can(EnumPermissions.ManageUser))
             {
                 <PermissionManager OnChanged="PermissionsChangedAsync" />
+            }
+            else if (view == 5)
+            {
+                <MyAccountForm />
             }
 
         </section>
@@ -512,6 +519,7 @@ else
         2 => editingArticle is null ? "Nowy artykuł" : "Edytuj artykuł",
         3 => "Nowy użytkownik",
         4 => "Uprawnienia",
+        5 => "Moje konto",
         _ => "Przegląd"
     };
 
@@ -521,6 +529,7 @@ else
         2 => editingArticle is null ? "Napisz artykuł i dodaj do niego zdjęcie." : "Zmień tytuł, treść, autora lub zdjęcie artykułu.",
         3 => "Utwórz konto dla nowego użytkownika.",
         4 => "Nadawaj i odbieraj uprawnienia użytkownikom panelu.",
+        5 => "Zmień swoje imię i nazwisko.",
         _ => "Zarządzaj artykułami i użytkownikami gazetki."
     };
 
@@ -535,6 +544,7 @@ else
         "list" => "<path d=\"M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01\"/>",
         "plus" => "<path d=\"M12 5v14M5 12h14\"/>",
         "user-plus" => "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M19 8v6M22 11h-6\"/>",
+        "user" => "<path d=\"M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>",
         "users" => "<path d=\"M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75\"/>",
         "image" => "<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><circle cx=\"8.5\" cy=\"8.5\" r=\"1.5\"/><path d=\"M21 15l-5-5L5 21\"/>",
         "file" => "<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><path d=\"M14 2v6h6M8 13h8M8 17h8\"/>",

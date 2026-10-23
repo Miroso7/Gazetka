@@ -63,6 +63,11 @@ namespace SchoolNewspaperBlazorApp.Service
             return await _permissionRepository.HasPermissionAsync(await GetPrincipalAsync(), permission);
         }
 
+        public async Task<int> GetMyUserIdAsync()
+        {
+            return await _permissionRepository.GetUserIdAsync(await GetPrincipalAsync());
+        }
+
         public async Task<HashSet<EnumPermissions>> GetMyPermissionsAsync()
         {
             var set = await _permissionRepository.GetPermissionsAsync(await GetPrincipalAsync());

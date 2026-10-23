@@ -44,6 +44,7 @@ namespace SchoolNewspaperBlazorApp.Data
         public string FirstName { get; set; } = "";
         public string LastName { get; set; } = "";
         public string Email { get; set; } = "";
+        public UserRole Role { get; set; } = UserRole.Student;
         public HashSet<EnumPermissions> Permissions { get; set; } = new();
 
         // konto master i konto zalogowanego użytkownika nie mogą zostać usunięte z panelu

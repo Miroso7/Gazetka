@@ -1,4 +1,5 @@
 ﻿using SchoolNewspaperBlazorApp.Data;
+using SchoolNewspaperBlazorApp.Data.Enums;
 
 namespace SchoolNewspaperBlazorApp.Interfaces.Repository
 {
@@ -8,5 +9,9 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Repository
         Task<User?> GetUserByEmailAsync(string email);
         Task<bool> EmailExistsAsync(string email);
         Task UpdateUserAsync(User user);
+        Task<UserProfile?> GetProfileAsync(int userId);
+        Task<bool> EmailExistsForOtherAsync(string email, int exceptUserId);
+        // Zmienia tylko dane profilu (nigdy hasła). Zwraca false, gdy użytkownik nie istnieje.
+        Task<bool> UpdateProfileAsync(int userId, string firstName, string lastName, string email, UserRole role);
     }
 }

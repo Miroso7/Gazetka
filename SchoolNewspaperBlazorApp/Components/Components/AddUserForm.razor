@@ -1,6 +1,7 @@
 ﻿@using System.Threading.Tasks
 @using Microsoft.AspNetCore.Components
 
+@using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 @using SchoolNewspaperBlazorApp.Service
 
@@ -17,6 +18,14 @@
         <label class="form-label">E-mail</label>
         <input @bind="Email" type="email" class="form-control mb-3" placeholder="E-Mail" />
 
+        <label class="form-label">Rola</label>
+        <select @bind="Role" class="form-select mb-3">
+            @foreach (var option in Enum.GetValues<UserRole>())
+            {
+                <option value="@option">@option.Label()</option>
+            }
+        </select>
+
         <label class="form-label">Hasło</label>
         <input @bind="Password" type="password" class="form-control mb-4" placeholder="Hasło" />
 
@@ -30,6 +39,7 @@
     public string LastName { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public UserRole Role { get; set; } = UserRole.Student;
 
     [Inject]
     public IAuthService AuthService { get; set; } = default!;
@@ -41,7 +51,7 @@
     {
         try
         {
-            await AuthService.AddUserAsync(FirstName, LastName, Password, Email);
+            await AuthService.AddUserAsync(FirstName, LastName, Password, Email, Role);
             FirstName = LastName = Password = Email = string.Empty;
             Notify.Show("Dodano użytkownika.");
         }

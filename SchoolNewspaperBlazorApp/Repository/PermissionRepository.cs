@@ -68,6 +68,7 @@ namespace SchoolNewspaperBlazorApp.Repository
                     u.FirstName,
                     u.LastName,
                     u.Email,
+                    u.Role,
                     Names = u.UserPermission.Select(up => up.Permission.PermissionName).ToList()
                 })
                 .ToListAsync();
@@ -78,6 +79,7 @@ namespace SchoolNewspaperBlazorApp.Repository
                 FirstName = r.FirstName,
                 LastName = r.LastName,
                 Email = r.Email,
+                Role = r.Role,
                 Permissions = r.Names.ToHashSet()
             }).ToList();
         }

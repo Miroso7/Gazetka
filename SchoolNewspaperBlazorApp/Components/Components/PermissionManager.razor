@@ -2,6 +2,7 @@
 @using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 @inject IPermissionService PermissionService
+@inject IAuthService AuthService
 
 <div class="perm-legend panel">
     <div class="panel__head">
@@ -59,11 +60,12 @@
                             @if (u.FullName.Length > 0)
                             {
                                 <span class="perm-row__name">@u.FullName</span>
-                                <span class="perm-row__email">@u.Email</span>
+                                <span class="perm-row__email">@u.Email · @u.Role.Label()</span>
                             }
                             else
                             {
                                 <span class="perm-row__name">@u.Email</span>
+                                <span class="perm-row__email">@u.Role.Label()</span>
                             }
                         </div>
                         <div class="perm-row__chips">
@@ -82,6 +84,7 @@
                         </div>
                         <div class="perm-row__actions">
                             <button type="button" class="link-btn" @onclick="() => GrantAllAsync(u)">Nadaj wszystkie</button>
+                            <button type="button" class="link-btn" @onclick="() => OpenEdit(u)">Edytuj dane</button>
                             @if (u.IsMaster)
                             {
                                 <span class="perm-row__badge">Master</span>
@@ -98,6 +101,54 @@
         }
     }
 </div>
+
+@if (editing != null)
+{
+    <div class="confirm">
+        <div class="confirm__scrim" @onclick="CancelEdit"></div>
+        <div class="confirm__dialog user-edit" role="dialog" aria-modal="true" aria-labelledby="user-edit-title">
+            <h2 id="user-edit-title" class="confirm__title">Edytuj użytkownika</h2>
+
+            @if (editError != null)
+            {
+                <div class="auth-alert" role="alert">@editError</div>
+            }
+
+            <form @onsubmit="SaveEditAsync" @onsubmit:preventDefault>
+                <label class="form-label">Imię</label>
+                <input @bind="editFirstName" class="form-control mb-3" placeholder="Imię" />
+
+                <label class="form-label">Nazwisko</label>
+                <input @bind="editLastName" class="form-control mb-3" placeholder="Nazwisko" />
+
+                <label class="form-label">E-mail</label>
+                <input @bind="editEmail" type="email" class="form-control mb-1" placeholder="E-mail" disabled="@editing.IsCurrentUser" />
+                @if (editing.IsCurrentUser)
+                {
+                    <div class="form-text mb-3">E-maila własnego konta nie można zmienić.</div>
+                }
+                else
+                {
+                    <div class="mb-2"></div>
+                }
+
+                <label class="form-label">Rola</label>
+                <select @bind="editRole" class="form-select mb-2">
+                    @foreach (var option in Enum.GetValues<UserRole>())
+                    {
+                        <option value="@option">@option.Label()</option>
+                    }
+                </select>
+                <div class="form-text mb-3">Hasła nie można zmienić z panelu.</div>
+
+                <div class="confirm__actions">
+                    <button type="button" class="btn btn-outline-primary" @onclick="CancelEdit" disabled="@saving">Anuluj</button>
+                    <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Zapisywanie..." : "Zapisz")</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
 
 @if (pendingDelete != null)
 {
@@ -132,6 +183,15 @@
     private string? info;
     private UserWithPermissions? pendingDelete;
     private bool deleting;
+
+    // edycja danych użytkownika (imię, nazwisko, e-mail, rola) – hasła nie da się zmienić
+    private UserWithPermissions? editing;
+    private string editFirstName = "";
+    private string editLastName = "";
+    private string editEmail = "";
+    private UserRole editRole = UserRole.Student;
+    private string? editError;
+    private bool saving;
 
     protected override async Task OnInitializedAsync()
     {
@@ -189,6 +249,54 @@
         finally
         {
             busy.Remove(key);
+        }
+    }
+
+    private void OpenEdit(UserWithPermissions user)
+    {
+        editing = user;
+        editFirstName = user.FirstName;
+        editLastName = user.LastName;
+        editEmail = user.Email;
+        editRole = user.Role;
+        editError = null;
+    }
+
+    private void CancelEdit()
+    {
+        if (!saving) editing = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (editing is null) return;
+
+        var user = editing;
+        saving = true;
+        editError = null;
+        try
+        {
+            await AuthService.UpdateUserAsync(user.UserId, editFirstName, editLastName, editEmail, editRole);
+            user.FirstName = editFirstName.Trim();
+            user.LastName = editLastName.Trim();
+            user.Email = editEmail.Trim();
+            user.Role = editRole;
+            info = $"Zapisano dane użytkownika {user.DisplayName}.";
+            error = null;
+            editing = null;
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            editError = ex.Message;
+        }
+        catch (Exception)
+        {
+            editError = "Nie udało się zapisać zmian. Spróbuj ponownie.";
+        }
+        finally
+        {
+            saving = false;
         }
     }
 

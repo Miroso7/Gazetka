@@ -10,6 +10,9 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
         // Wszystkie permisje zalogowanego użytkownika (do pokazywania / ukrywania elementów UI).
         Task<HashSet<EnumPermissions>> GetMyPermissionsAsync();
 
+        // Id zalogowanego użytkownika (0 = niezalogowany).
+        Task<int> GetMyUserIdAsync();
+
         // Rzuca UnauthorizedAccessException, gdy użytkownik nie ma permisji.
         Task RequirePermissionAsync(EnumPermissions permission);
 

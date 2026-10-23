@@ -24,9 +24,14 @@ namespace SchoolNewspaperBlazorApp.Service
             _permissionService = permissionService;
         }
 
-        public async Task AddUserAsync(string firstName, string lastName, string password, string email)
+        public async Task AddUserAsync(string firstName, string lastName, string password, string email, UserRole role)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.AddUser);
+
+            if (!Enum.IsDefined(role))
+            {
+                throw new InvalidOperationException("Wybierz rolę użytkownika.");
+            }
 
             if (string.IsNullOrWhiteSpace(firstName))
             {
@@ -63,10 +68,89 @@ namespace SchoolNewspaperBlazorApp.Service
                 LastName = lastName,
                 Password = HashPassword(password),
                 Email = email,
+                Role = role,
                 RegisterDate = DateTime.Now
             };
 
             await _authRepository.AddUserAsync(user);
+        }
+
+        public async Task<UserProfile?> GetMyProfileAsync()
+        {
+            var myId = await _permissionService.GetMyUserIdAsync();
+            return myId == 0 ? null : await _authRepository.GetProfileAsync(myId);
+        }
+
+        public async Task UpdateUserAsync(int userId, string firstName, string lastName, string email, UserRole role)
+        {
+            var myId = await _permissionService.GetMyUserIdAsync();
+            if (myId == 0)
+            {
+                throw new UnauthorizedAccessException("Zaloguj się, aby edytować konto.");
+            }
+
+            var isMaster = await _permissionService.HasPermissionAsync(EnumPermissions.Master);
+            if (!isMaster && userId != myId)
+            {
+                throw new UnauthorizedAccessException("Możesz edytować tylko własne konto.");
+            }
+
+            var current = await _authRepository.GetProfileAsync(userId);
+            if (current is null)
+            {
+                throw new InvalidOperationException("Nie znaleziono użytkownika.");
+            }
+
+            if (string.IsNullOrWhiteSpace(firstName))
+            {
+                throw new InvalidOperationException("Imię nie może być puste.");
+            }
+
+            if (string.IsNullOrWhiteSpace(lastName))
+            {
+                throw new InvalidOperationException("Nazwisko nie może być puste.");
+            }
+
+            firstName = firstName.Trim();
+            lastName = lastName.Trim();
+
+            // zwykły użytkownik zmienia tylko imię i nazwisko – e-mail i rola zostają bez zmian
+            if (!isMaster)
+            {
+                email = current.Email;
+                role = current.Role;
+            }
+
+            email = email?.Trim() ?? string.Empty;
+            if (email.Length == 0 || !email.Contains('@'))
+            {
+                throw new InvalidOperationException("Podaj poprawny adres e-mail.");
+            }
+
+            if (!Enum.IsDefined(role))
+            {
+                throw new InvalidOperationException("Wybierz rolę użytkownika.");
+            }
+
+            var emailChanged = !string.Equals(email, current.Email, StringComparison.OrdinalIgnoreCase);
+            if (emailChanged)
+            {
+                // e-mail zalogowanej osoby jest zapisany w jej sesji, więc jego zmiana rozłączyłaby ją z kontem
+                if (userId == myId)
+                {
+                    throw new InvalidOperationException("Nie możesz zmienić e-maila własnego konta.");
+                }
+
+                if (await _authRepository.EmailExistsForOtherAsync(email, userId))
+                {
+                    throw new InvalidOperationException("Użytkownik o takim adresie e-mail już istnieje.");
+                }
+            }
+
+            if (!await _authRepository.UpdateProfileAsync(userId, firstName, lastName, email, role))
+            {
+                throw new InvalidOperationException("Nie znaleziono użytkownika.");
+            }
         }
 
         public async Task<bool> LoginAsync(string email, string password)

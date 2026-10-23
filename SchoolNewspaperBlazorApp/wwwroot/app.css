@@ -3951,3 +3951,19 @@ body:has(.lightbox) {
     background: var(--navy);
     border-radius: 999px;
 }
+
+
+/* ---------- Edycja użytkownika (okno w panelu uprawnień) ---------- */
+.user-edit {
+    width: min(100%, 28rem);
+    text-align: left;
+}
+
+    .user-edit .confirm__title {
+        margin-bottom: 1rem;
+        text-align: left;
+    }
+
+    .user-edit .confirm__actions {
+        margin-top: 1.25rem;
+    }
