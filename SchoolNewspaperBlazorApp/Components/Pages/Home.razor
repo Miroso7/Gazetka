@@ -28,27 +28,29 @@
     </div>
 </section>
 
-<div class="section-head" id="aktualnosci">
-    <h2 class="section-title">@(selectedType?.Label() ?? "Aktualności")</h2>
-    <p class="section-sub">@(selectedType?.Description() ?? "Najnowsze artykuły z życia szkoły")</p>
-</div>
-
-<nav class="type-tabs" aria-label="Kategorie artykułów">
-    <div class="type-tabs__list">
-        <a class="type-tab @(selectedType is null ? "is-active" : "")" href="/#aktualnosci"
-           aria-current="@(selectedType is null ? "page" : null)">Wszystkie</a>
-        @foreach (var type in Enum.GetValues<ArticleType>())
-        {
-            <a class="type-tab @(selectedType == type ? "is-active" : "")" href="@($"/?typ={type}#aktualnosci")"
-               aria-current="@(selectedType == type ? "page" : null)">@type.Label()</a>
-        }
+<section class="news-zone">
+    <div class="section-head" id="aktualnosci">
+        <h2 class="section-title">@(selectedType?.Label() ?? "Aktualności")</h2>
+        <p class="section-sub">@(selectedType?.Description() ?? "Najnowsze artykuły z życia szkoły")</p>
     </div>
-</nav>
 
-<ArticleCard Articles="articles"
-             permissions="false"
-             ShowType="@(selectedType is null)"
-             EmptyText="@(selectedType?.EmptyText() ?? "Nie ma jeszcze żadnych artykułów.")" />
+    <nav class="type-tabs" aria-label="Kategorie artykułów">
+        <div class="type-tabs__list">
+            <a class="type-tab @(selectedType is null ? "is-active" : "")" href="/#aktualnosci"
+               aria-current="@(selectedType is null ? "page" : null)">Wszystkie</a>
+            @foreach (var type in Enum.GetValues<ArticleType>())
+            {
+                <a class="type-tab @(selectedType == type ? "is-active" : "")" href="@($"/?typ={type}#aktualnosci")"
+                   aria-current="@(selectedType == type ? "page" : null)">@type.Label()</a>
+            }
+        </div>
+    </nav>
+
+    <ArticleCard Articles="articles"
+                 permissions="false"
+                 ShowType="@(selectedType is null)"
+                 EmptyText="@(selectedType?.EmptyText() ?? "Nie ma jeszcze żadnych artykułów.")" />
+</section>
 
 
 @code

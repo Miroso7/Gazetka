@@ -17,7 +17,7 @@
         var isNewest = !permissions && Articles.Count > 1 && article.Id == NewestId;
 
         <article @key="article.Id"
-                 class="article-card @(featured ? "article-card--featured" : "") @(permissions ? "article-card--admin" : "")"
+                 class="article-card article-card--@article.Type.CssName() @(featured ? "article-card--featured" : "") @(permissions ? "article-card--admin" : "")"
                  style="--i:@Math.Min(i, 8)">
 
             <div class="article-card__img-wrap">
