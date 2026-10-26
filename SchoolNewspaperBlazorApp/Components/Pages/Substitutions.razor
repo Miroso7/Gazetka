@@ -1,0 +1,166 @@
+﻿@page "/zastepstwa"
+@using System.Globalization
+@using SchoolNewspaperBlazorApp.Components.Components
+@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject ISubstitutionService substitutionService
+
+<PageTitle>Zastępstwa · Portal szkolny</PageTitle>
+
+<div class="section-head">
+    <h1 class="section-title">Zastępstwa</h1>
+    <p class="section-sub">Aktualne zastępstwa za nieobecnych nauczycieli</p>
+</div>
+
+<div class="subst-bar">
+    <div class="subst-bar__day">
+        <button type="button" class="icon-btn" aria-label="Poprzedni dzień" @onclick="() => ShiftDayAsync(-1)">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+        </button>
+        <div class="subst-bar__label" aria-live="polite">
+            <span class="subst-bar__date">@DayLabel</span>
+            @if (date == DateTime.Today)
+            {
+                <span class="subst-chip subst-chip--sub">Dziś</span>
+            }
+        </div>
+        <button type="button" class="icon-btn" aria-label="Następny dzień" @onclick="() => ShiftDayAsync(1)">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+        </button>
+    </div>
+
+    <div class="subst-bar__filters">
+        <input type="date" class="select" aria-label="Wybierz dzień"
+               value="@date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" @onchange="OnDateChangedAsync" />
+        <select class="select" aria-label="Filtruj po klasie" @bind="classFilter">
+            <option value="">Wszystkie klasy</option>
+            @foreach (var c in ClassOptions)
+            {
+                <option value="@c.Id">@c.Name</option>
+            }
+        </select>
+        <select class="select" aria-label="Filtruj po nauczycielu" @bind="teacherFilter">
+            <option value="">Wszyscy nauczyciele</option>
+            @foreach (var t in TeacherOptions)
+            {
+                <option value="@t.Id">@t.Name</option>
+            }
+        </select>
+        @if (date != DateTime.Today)
+        {
+            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="TodayAsync">Dziś</button>
+        }
+    </div>
+</div>
+
+@if (loading)
+{
+    <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+}
+else
+{
+    var shown = Filtered.ToList();
+    if (shown.Count == 0)
+    {
+        <div class="empty-state">
+            @(items.Count == 0 ? "Na ten dzień nie ma zastępstw." : "Brak zastępstw pasujących do filtrów.")
+        </div>
+    }
+    else
+    {
+        <SubstitutionTable Items="shown" />
+        <p class="subst-count">Zastępstw: @shown.Count</p>
+    }
+}
+
+@code {
+    private static readonly CultureInfo Pl = new("pl-PL");
+
+    private DateTime date = DateTime.Today;
+    private List<Substitution> items = new();
+    private bool loading = true;
+    private string classFilter = "";
+    private string teacherFilter = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        try
+        {
+            items = await substitutionService.GetSubstitutionsAsync(date);
+            // filtr z poprzedniego dnia nie może ukryć wszystkich wpisów nowego dnia
+            if (!ClassOptions.Any(c => c.Id.ToString() == classFilter)) classFilter = "";
+            if (!TeacherOptions.Any(t => t.Id.ToString() == teacherFilter)) teacherFilter = "";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ShiftDayAsync(int days)
+    {
+        date = date.AddDays(days);
+        await LoadAsync();
+    }
+
+    private async Task TodayAsync()
+    {
+        date = DateTime.Today;
+        await LoadAsync();
+    }
+
+    private async Task OnDateChangedAsync(ChangeEventArgs e)
+    {
+        if (DateTime.TryParseExact(e.Value?.ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+        {
+            date = parsed;
+            await LoadAsync();
+        }
+    }
+
+    // opcje filtrów pochodzą z zastępstw wybranego dnia
+    private IEnumerable<SchoolClass> ClassOptions => items
+        .Where(s => s.Class != null)
+        .Select(s => s.Class!)
+        .DistinctBy(c => c.Id)
+        .OrderBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase);
+
+    private IEnumerable<Teacher> TeacherOptions => items
+        .SelectMany(s => new[] { s.AbsentTeacher, s.SubstituteTeacher })
+        .Where(t => t != null)
+        .Select(t => t!)
+        .DistinctBy(t => t.Id)
+        .OrderBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase);
+
+    private IEnumerable<Substitution> Filtered
+    {
+        get
+        {
+            var q = items.AsEnumerable();
+            if (!string.IsNullOrEmpty(classFilter))
+            {
+                q = q.Where(s => s.ClassId.ToString() == classFilter);
+            }
+            if (!string.IsNullOrEmpty(teacherFilter))
+            {
+                q = q.Where(s => s.AbsentTeacherId.ToString() == teacherFilter || s.SubstituteTeacherId.ToString() == teacherFilter);
+            }
+            return q;
+        }
+    }
+
+    private string DayLabel
+    {
+        get
+        {
+            var text = date.ToString("dddd, d MMMM yyyy", Pl);
+            return text.Length == 0 ? text : char.ToUpper(text[0], Pl) + text[1..];
+        }
+    }
+}

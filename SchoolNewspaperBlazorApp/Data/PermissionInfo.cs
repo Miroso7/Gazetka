@@ -22,6 +22,10 @@ namespace SchoolNewspaperBlazorApp.Data
             EnumPermissions.AddUser => "Dodawanie użytkowników",
             EnumPermissions.ManageUser => "Zarządzanie uprawnieniami",
             EnumPermissions.Master => "Master",
+            EnumPermissions.AddSubstitution => "Dodawanie zastępstw",
+            EnumPermissions.EditSubstitution => "Edycja zastępstw",
+            EnumPermissions.DeleteSubstitution => "Usuwanie zastępstw",
+            EnumPermissions.ManageSchoolData => "Dane szkoły",
             _ => permission.ToString()
         };
 
@@ -33,6 +37,10 @@ namespace SchoolNewspaperBlazorApp.Data
             EnumPermissions.AddUser => "Zakładka „Dodaj użytkownika” i tworzenie nowych kont.",
             EnumPermissions.ManageUser => "Zakładka „Uprawnienia”: nadawanie i odbieranie permisji innym.",
             EnumPermissions.Master => "Konto główne: jako jedyne zarządza uprawnieniami innych użytkowników.",
+            EnumPermissions.AddSubstitution => "Zakładka „Zastępstwa”: dodawanie nowych zastępstw.",
+            EnumPermissions.EditSubstitution => "Przycisk „Edytuj” przy zastępstwach i zapisywanie zmian.",
+            EnumPermissions.DeleteSubstitution => "Przycisk „Usuń” przy zastępstwach.",
+            EnumPermissions.ManageSchoolData => "Zakładka „Dane szkoły”: klasy, nauczyciele, sale i przedmioty.",
             _ => ""
         };
     }

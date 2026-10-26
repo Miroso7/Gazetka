@@ -32,6 +32,8 @@ namespace SchoolNewspaperBlazorApp
             builder.Services.AddScoped<IFileRepository, FileRepository>();
             builder.Services.AddScoped<IAuthRepository, AuthRepository>();
             builder.Services.AddScoped<IPermissionRepository, PermissionRepository>();
+            builder.Services.AddScoped<ISchoolDataRepository, SchoolDataRepository>();
+            builder.Services.AddScoped<ISubstitutionRepository, SubstitutionRepository>();
 
 
             //Services
@@ -40,6 +42,8 @@ namespace SchoolNewspaperBlazorApp
             builder.Services.AddScoped<IFileService, FileService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IPermissionService, PermissionService>();
+            builder.Services.AddScoped<ISchoolDataService, SchoolDataService>();
+            builder.Services.AddScoped<ISubstitutionService, SubstitutionService>();
             builder.Services.AddScoped<NotificationService>();
 
             // sesje logowania: pozwalają unieważnić logowanie także w otwartych obwodach Blazora

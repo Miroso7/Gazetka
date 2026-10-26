@@ -1,0 +1,204 @@
+﻿
+@using System.Globalization
+@using Microsoft.Extensions.Logging
+@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@using SchoolNewspaperBlazorApp.Service
+@inject ISubstitutionService SubstitutionService
+@inject NotificationService Notify
+@inject ILogger<SubstitutionManager> Logger
+
+<div class="panel subst-manager">
+    <div class="a-toolbar">
+        <input type="date" class="select" aria-label="Dzień zastępstw" disabled="@showAll"
+               value="@date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" @onchange="OnDateChangedAsync" />
+        <button type="button" class="btn btn-sm btn-outline-primary" disabled="@showAll" @onclick="TodayAsync">Dziś</button>
+        <label class="perm-chip @(showAll ? "is-on" : "")">
+            <input type="checkbox" checked="@showAll" @onchange="OnShowAllChangedAsync" />
+            <span>Wszystkie dni</span>
+        </label>
+        @if (CanAdd)
+        {
+            <button type="button" class="btn btn-primary subst-manager__add" @onclick="OpenAdd">Dodaj zastępstwo</button>
+        }
+    </div>
+
+    @if (loading)
+    {
+        <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    }
+    else if (items.Count == 0)
+    {
+        <div class="empty-state">
+            @(showAll ? "Nie ma jeszcze żadnych zastępstw." : "Brak zastępstw w wybranym dniu.")
+        </div>
+    }
+    else
+    {
+        <SubstitutionTable Items="items" ShowDate="showAll"
+                           CanEdit="CanEdit" CanDelete="CanDelete"
+                           OnEdit="OpenEdit" OnDelete="@(s => pendingDelete = s)" />
+        <div class="a-foot">Zastępstw: @items.Count</div>
+    }
+</div>
+
+@if (formOpen)
+{
+    <div class="confirm">
+        <div class="confirm__scrim" @onclick="CloseForm"></div>
+        <div class="confirm__dialog confirm__dialog--wide" role="dialog" aria-modal="true" aria-label="Formularz zastępstwa">
+            <SubstitutionForm @key="(editing?.Id ?? 0)" Edited="editing" DefaultDate="date"
+                              OnSaved="SavedAsync" OnCancelled="CloseForm" />
+        </div>
+    </div>
+}
+
+@if (pendingDelete != null)
+{
+    <div class="confirm">
+        <div class="confirm__scrim" @onclick="CancelDelete"></div>
+        <div class="confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-subst-title">
+            <div class="confirm__icon">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" /></svg>
+            </div>
+            <h2 id="confirm-subst-title" class="confirm__title">Usunąć zastępstwo?</h2>
+            <p class="confirm__text">Zastępstwo (@pendingDelete.Date.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture), @(pendingDelete.Lesson). lekcja, klasa @(pendingDelete.Class?.Name ?? "–")) przestanie być widoczne. Z panelu nie można tego cofnąć.</p>
+            <div class="confirm__actions">
+                <button type="button" class="btn btn-outline-primary" @onclick="CancelDelete" disabled="@deleting">Anuluj</button>
+                <button type="button" class="btn btn-danger-solid" @onclick="ConfirmDeleteAsync" disabled="@deleting">
+                    @(deleting ? "Usuwanie..." : "Usuń")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // uprawnienia zalogowanego użytkownika (serwis i tak sprawdza je przy każdym zapisie)
+    [Parameter]
+    public bool CanAdd { get; set; }
+    [Parameter]
+    public bool CanEdit { get; set; }
+    [Parameter]
+    public bool CanDelete { get; set; }
+
+    private List<Substitution> items = new();
+    private DateTime date = DateTime.Today;
+    private bool showAll;
+    private bool loading = true;
+
+    private bool formOpen;
+    private Substitution? editing;
+    private Substitution? pendingDelete;
+    private bool deleting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        try
+        {
+            items = await SubstitutionService.GetSubstitutionsAsync(showAll ? null : date);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Nie udało się wczytać zastępstw.");
+            items = new();
+            Notify.Show("Nie udało się wczytać zastępstw.", NotificationType.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task OnDateChangedAsync(ChangeEventArgs e)
+    {
+        if (DateTime.TryParseExact(e.Value?.ToString(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+        {
+            date = parsed;
+            await LoadAsync();
+        }
+    }
+
+    private async Task TodayAsync()
+    {
+        date = DateTime.Today;
+        await LoadAsync();
+    }
+
+    private async Task OnShowAllChangedAsync(ChangeEventArgs e)
+    {
+        showAll = e.Value is true;
+        await LoadAsync();
+    }
+
+    private void OpenAdd()
+    {
+        if (!CanAdd) return;
+        editing = null;
+        formOpen = true;
+    }
+
+    private void OpenEdit(Substitution substitution)
+    {
+        if (!CanEdit) return;
+        editing = substitution;
+        formOpen = true;
+    }
+
+    private void CloseForm()
+    {
+        formOpen = false;
+        editing = null;
+    }
+
+    private async Task SavedAsync()
+    {
+        var wasEdit = editing is not null;
+        if (wasEdit)
+        {
+            CloseForm();
+        }
+        await LoadAsync();
+        Notify.Show(wasEdit ? "Zmiany zostały zapisane." : "Dodano zastępstwo.");
+    }
+
+    private void CancelDelete()
+    {
+        if (!deleting) pendingDelete = null;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (pendingDelete is null) return;
+
+        var substitution = pendingDelete;
+        deleting = true;
+        try
+        {
+            await SubstitutionService.RemoveSubstitutionAsync(substitution.Id);
+            items.Remove(substitution);
+            Notify.Show("Zastępstwo zostało usunięte.");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            Notify.Show(ex.Message, NotificationType.Error);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Nie udało się usunąć zastępstwa {SubstitutionId}.", substitution.Id);
+            Notify.Show("Nie udało się usunąć zastępstwa.", NotificationType.Error);
+        }
+        finally
+        {
+            deleting = false;
+            pendingDelete = null;
+        }
+    }
+}

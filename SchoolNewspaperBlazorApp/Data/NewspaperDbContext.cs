@@ -14,6 +14,11 @@ namespace SchoolNewspaperBlazorApp.Data
         public DbSet<ArticleImage> ArticleImages => Set<ArticleImage>();
         public DbSet<Permission> Permissions => Set<Permission>();
         public DbSet<UserPermission> UserPermissions => Set<UserPermission>();
+        public DbSet<SchoolClass> SchoolClasses => Set<SchoolClass>();
+        public DbSet<Teacher> Teachers => Set<Teacher>();
+        public DbSet<Room> Rooms => Set<Room>();
+        public DbSet<Subject> Subjects => Set<Subject>();
+        public DbSet<Substitution> Substitutions => Set<Substitution>();
 
         // Soft delete: usunięcie encji ISoftDelete nie kasuje wiersza, tylko ustawia IsDeleted = 1.
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -56,6 +61,12 @@ namespace SchoolNewspaperBlazorApp.Data
             // uprawnienia usuniętego użytkownika też są niewidoczne (jednocześnie spełnia to wymóg EF dla wymaganej relacji z User)
             mb.Entity<UserPermission>().HasQueryFilter(up => !up.IsDeleted && !up.User.IsDeleted);
 
+            mb.Entity<SchoolClass>().HasQueryFilter(x => !x.IsDeleted);
+            mb.Entity<Teacher>().HasQueryFilter(x => !x.IsDeleted);
+            mb.Entity<Room>().HasQueryFilter(x => !x.IsDeleted);
+            mb.Entity<Subject>().HasQueryFilter(x => !x.IsDeleted);
+            mb.Entity<Substitution>().HasQueryFilter(x => !x.IsDeleted);
+
             mb.Entity<MediaFile>()
                 .Property(x => x.Id)
                 .ValueGeneratedNever();
@@ -94,6 +105,26 @@ namespace SchoolNewspaperBlazorApp.Data
                     .WithMany()
                     .HasForeignKey(x => x.PermissionId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Słowniki szkoły: nazwa ma limit długości (pola z klasy bazowej SchoolDictionaryItem).
+            mb.Entity<SchoolClass>().Property(x => x.Name).HasMaxLength(SchoolDictionaryItem.MaxNameLength);
+            mb.Entity<Teacher>().Property(x => x.Name).HasMaxLength(SchoolDictionaryItem.MaxNameLength);
+            mb.Entity<Room>().Property(x => x.Name).HasMaxLength(SchoolDictionaryItem.MaxNameLength);
+            mb.Entity<Subject>().Property(x => x.Name).HasMaxLength(SchoolDictionaryItem.MaxNameLength);
+
+            // Zastępstwa: słowniki usuwa się miękko, więc relacje są opcjonalne i bez kaskad (Restrict).
+            mb.Entity<Substitution>(e =>
+            {
+                e.Property(x => x.Date).HasColumnType("date");
+                e.Property(x => x.Note).HasMaxLength(Substitution.MaxNoteLength);
+                e.HasIndex(x => x.Date);
+
+                e.HasOne(x => x.Class).WithMany().HasForeignKey(x => x.ClassId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Subject).WithMany().HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.AbsentTeacher).WithMany().HasForeignKey(x => x.AbsentTeacherId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.SubstituteTeacher).WithMany().HasForeignKey(x => x.SubstituteTeacherId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Room).WithMany().HasForeignKey(x => x.RoomId).OnDelete(DeleteBehavior.Restrict);
             });
 
         }

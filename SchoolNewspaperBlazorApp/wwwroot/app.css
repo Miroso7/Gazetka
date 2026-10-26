@@ -4433,3 +4433,464 @@ article.ap {
         background: rgba(255, 255, 255, .97);
     }
 }
+
+
+/* =====================================================================
+   Zastępstwa, dane szkoły i dopracowanie wyglądu
+   ===================================================================== */
+
+/* ---------- Strona zastępstw: pasek dnia i filtry ---------- */
+.subst-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem 1.25rem;
+    margin: 1.25rem 0 1rem;
+    padding: .75rem 1rem;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.subst-bar__day {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+.subst-bar__label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    min-width: 13rem;
+}
+
+.subst-bar__date {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: var(--navy);
+}
+
+.subst-bar__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .6rem;
+}
+
+.subst-count {
+    margin: .75rem .25rem 2rem;
+    font-size: .85rem;
+    color: var(--muted);
+}
+
+/* ---------- Tabela zastępstw ---------- */
+.subst-table-wrap {
+    overflow-x: auto;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.subst-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+    font-size: .93rem;
+}
+
+    .subst-table th {
+        padding: .8rem 1rem;
+        font-size: .76rem;
+        font-weight: 700;
+        letter-spacing: .06em;
+        text-align: left;
+        text-transform: uppercase;
+        white-space: nowrap;
+        color: var(--muted);
+        background: var(--bg);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .subst-table td {
+        padding: .85rem 1rem;
+        vertical-align: middle;
+        color: var(--text);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .subst-table tbody tr {
+        transition: background .2s var(--ease);
+    }
+
+        .subst-table tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .subst-table tbody tr:hover {
+            background: #f9fbff;
+        }
+
+        .subst-table tbody tr.is-cancelled td:not(.subst-table__actions) {
+            color: var(--muted);
+        }
+
+.subst-lesson {
+    display: inline-grid;
+    place-items: center;
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 .4rem;
+    font-weight: 800;
+    color: var(--white);
+    background: var(--navy);
+    border-radius: 9px;
+}
+
+.subst-chip {
+    display: inline-block;
+    padding: .2rem .7rem;
+    font-size: .82rem;
+    font-weight: 700;
+    line-height: 1.4;
+    border-radius: 999px;
+}
+
+.subst-chip--sub {
+    color: var(--blue-dark);
+    background: var(--blue-soft);
+}
+
+.subst-chip--cancelled {
+    color: #bf2b3d;
+    background: #fdecee;
+}
+
+.subst-note {
+    max-width: 16rem;
+    font-size: .88rem;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+}
+
+.subst-table__actions {
+    display: flex;
+    gap: .4rem;
+    justify-content: flex-end;
+    white-space: nowrap;
+}
+
+/* ---------- Formularz zastępstwa i okno z formularzem ---------- */
+.subst-form__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 1.25rem;
+}
+
+.subst-form__check {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.1rem;
+}
+
+.subst-form__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: .75rem;
+}
+
+.confirm__dialog--wide {
+    width: min(46rem, 100%);
+}
+
+    .confirm__dialog--wide .add-article-form {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+    }
+
+.subst-manager__add {
+    margin-left: auto;
+}
+
+/* ---------- Dane szkoły (klasy, nauczyciele, sale, przedmioty) ---------- */
+button.type-tab {
+    font-family: var(--font);
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.sd-tab__count {
+    display: inline-block;
+    min-width: 1.4rem;
+    margin-left: .3rem;
+    padding: 0 .4rem;
+    font-size: .76rem;
+    font-weight: 700;
+    line-height: 1.4rem;
+    text-align: center;
+    color: var(--blue-dark);
+    background: var(--blue-soft);
+    border-radius: 999px;
+}
+
+.type-tab.is-active .sd-tab__count {
+    color: var(--white);
+    background: rgba(255, 255, 255, .25);
+}
+
+.sd-panel {
+    margin-top: 1rem;
+}
+
+.field__input--plain {
+    padding-left: .95rem;
+}
+
+.sd-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sd-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .8rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+    transition: background .2s var(--ease);
+}
+
+    .sd-row:hover {
+        background: #f9fbff;
+    }
+
+.sd-row__name {
+    min-width: 0;
+    font-weight: 600;
+    color: var(--navy);
+    overflow-wrap: anywhere;
+}
+
+.sd-row__actions {
+    display: flex;
+    gap: 1rem;
+    white-space: nowrap;
+}
+
+.sd-row__edit {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+}
+
+    .sd-row__edit .field__input {
+        flex: 1 1 14rem;
+        width: auto;
+    }
+
+/* ---------- Dopracowanie wyglądu całej strony ---------- */
+img {
+    max-width: 100%;
+}
+
+body {
+    text-rendering: optimizeLegibility;
+}
+
+/* spójne podświetlenie pól formularzy także poza formularzem artykułu */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 .22rem rgba(23, 105, 224, .18);
+}
+
+.form-select {
+    font-family: var(--font);
+    border-radius: var(--radius-sm);
+}
+
+.btn:disabled,
+.btn.disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.btn-sm {
+    padding: .35rem .85rem;
+}
+
+/* delikatne unoszenie kafelków statystyk jak kafelków szybkich akcji */
+.stat {
+    transition: transform .3s var(--ease), box-shadow .3s var(--ease);
+}
+
+    .stat:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+/* okna dialogowe nie wychodzą poza ekran na niskich ekranach */
+.confirm__dialog {
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+}
+
+/* alerty i puste stany */
+.auth-alert {
+    border-radius: var(--radius-sm);
+}
+
+.empty-state {
+    font-size: .95rem;
+}
+
+.panel .a-toolbar:last-child {
+    border-bottom: 0;
+}
+
+/* linki w stopce */
+.site-footer a {
+    text-underline-offset: .2em;
+}
+
+/* cienki, spójny pasek przewijania w tabelach i listach */
+.subst-table-wrap,
+.perm-row__chips {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+}
+
+/* z dodatkowym linkiem (Zastępstwa) menu mieści się też na węższych laptopach */
+@media (min-width: 1200px) and (max-width: 1399.98px) {
+    .site-nav {
+        gap: .25rem 1rem;
+    }
+
+        .site-nav .nav-link {
+            padding: .55rem .75rem;
+        }
+
+    .site-nav__search-input {
+        width: 10rem;
+    }
+
+        .site-nav__search-input:focus {
+            width: 12.5rem;
+        }
+}
+
+@media (max-width: 767.98px) {
+    .subst-form__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .subst-bar {
+        padding: .75rem;
+    }
+
+    .subst-bar__label {
+        min-width: 0;
+        flex: 1;
+        justify-content: center;
+    }
+
+    .subst-bar__filters .select {
+        flex: 1 1 100%;
+    }
+
+    /* tabela zastępstw jako lista kart: etykieta kolumny po lewej, wartość po prawej */
+    .subst-table-wrap {
+        overflow: visible;
+        background: none;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .subst-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+
+    .subst-table,
+    .subst-table tbody {
+        display: block;
+    }
+
+        .subst-table tbody tr {
+            display: block;
+            margin-bottom: .85rem;
+            padding: .4rem 0;
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+        }
+
+            .subst-table tbody tr:hover {
+                background: var(--white);
+            }
+
+        .subst-table td {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: .45rem 1rem;
+            text-align: right;
+            border-bottom: 0;
+        }
+
+            .subst-table td[data-label]::before {
+                content: attr(data-label);
+                flex: none;
+                font-size: .74rem;
+                font-weight: 700;
+                letter-spacing: .06em;
+                text-transform: uppercase;
+                color: var(--muted);
+            }
+
+    .subst-note {
+        max-width: none;
+    }
+
+    .subst-table__actions {
+        justify-content: flex-end;
+        padding-top: .6rem;
+    }
+
+    .sd-row {
+        padding: .8rem 1rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stat,
+    .subst-table tbody tr,
+    .sd-row {
+        transition: none;
+    }
+}
+
+@media print {
+    .subst-bar__filters,
+    .subst-bar .icon-btn {
+        display: none;
+    }
+}

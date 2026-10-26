@@ -1,0 +1,258 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using Microsoft.Extensions.Logging
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@using SchoolNewspaperBlazorApp.Service
+@inject ISchoolDataService SchoolDataService
+@inject NotificationService Notify
+@inject ILogger<SchoolDataManager> Logger
+
+<nav class="type-tabs sd-tabs" aria-label="Rodzaje danych szkoły">
+    <div class="type-tabs__list">
+        @foreach (var k in Enum.GetValues<SchoolDictionaryKind>())
+        {
+            <button type="button" class="type-tab @(kind == k ? "is-active" : "")"
+                    aria-current="@(kind == k ? "page" : null)" @onclick="() => SelectKind(k)">
+                @k.Label()
+                <span class="sd-tab__count">@(data.TryGetValue(k, out var list) ? list.Count : 0)</span>
+            </button>
+        }
+    </div>
+</nav>
+
+<div class="panel sd-panel">
+    <form class="a-toolbar sd-add" @onsubmit="AddAsync" @onsubmit:preventDefault>
+        <div class="field">
+            <input class="field__input field__input--plain" type="text" maxlength="@SchoolDictionaryItem.MaxNameLength"
+                   placeholder="@kind.NameLabel() (@kind.Placeholder())"
+                   aria-label="@kind.NameLabel()"
+                   @bind="newName" @bind:event="oninput" />
+        </div>
+        <button type="submit" class="btn btn-primary" disabled="@busy">Dodaj</button>
+    </form>
+
+    @if (loading)
+    {
+        <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    }
+    else
+    {
+        var all = Current;
+        var shown = Filtered.ToList();
+
+        if (all.Count > 8)
+        {
+            <div class="a-toolbar">
+                <div class="field">
+                    <input class="field__input field__input--plain" type="search" placeholder="Szukaj na liście..."
+                           aria-label="Szukaj na liście" @bind="search" @bind:event="oninput" />
+                </div>
+            </div>
+        }
+
+        if (shown.Count == 0)
+        {
+            <div class="empty-state">@(all.Count == 0 ? kind.EmptyText() : "Brak pozycji pasujących do wyszukiwania.")</div>
+        }
+        else
+        {
+            <ul class="sd-list">
+                @foreach (var item in shown)
+                {
+                    <li class="sd-row" @key="item.Id">
+                        @if (editingId == item.Id)
+                        {
+                            <form class="sd-row__edit" @onsubmit="SaveEditAsync" @onsubmit:preventDefault>
+                                <input class="field__input field__input--plain" type="text" maxlength="@SchoolDictionaryItem.MaxNameLength"
+                                       aria-label="@kind.NameLabel()" @bind="editName" @bind:event="oninput" />
+                                <button type="submit" class="btn btn-sm btn-primary" disabled="@busy">Zapisz</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="CancelEdit" disabled="@busy">Anuluj</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="sd-row__name">@item.Name</span>
+                            <div class="sd-row__actions">
+                                <button type="button" class="link-btn" @onclick="() => StartEdit(item)">Edytuj</button>
+                                <button type="button" class="link-btn link-btn--danger" @onclick="() => pendingDelete = item">Usuń</button>
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+            <div class="a-foot">Wyświetlono @shown.Count z @all.Count</div>
+        }
+    }
+</div>
+
+@if (pendingDelete != null)
+{
+    <div class="confirm">
+        <div class="confirm__scrim" @onclick="CancelDelete"></div>
+        <div class="confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-sd-title">
+            <div class="confirm__icon">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" /></svg>
+            </div>
+            <h2 id="confirm-sd-title" class="confirm__title">Usunąć @(kind.SingularAccusative())?</h2>
+            <p class="confirm__text">Pozycja „@pendingDelete.Name” zniknie z list wyboru. Nie da się usunąć pozycji użytej w zastępstwach.</p>
+            <div class="confirm__actions">
+                <button type="button" class="btn btn-outline-primary" @onclick="CancelDelete" disabled="@busy">Anuluj</button>
+                <button type="button" class="btn btn-danger-solid" @onclick="ConfirmDeleteAsync" disabled="@busy">
+                    @(busy ? "Usuwanie..." : "Usuń")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private SchoolDictionaryKind kind = SchoolDictionaryKind.Class;
+    private readonly Dictionary<SchoolDictionaryKind, List<SchoolDictionaryItem>> data = new();
+    private bool loading = true;
+    private bool busy;
+    private string newName = "";
+    private string search = "";
+
+    private int? editingId;
+    private string editName = "";
+    private SchoolDictionaryItem? pendingDelete;
+
+    private List<SchoolDictionaryItem> Current =>
+        data.TryGetValue(kind, out var list) ? list : new List<SchoolDictionaryItem>();
+
+    private IEnumerable<SchoolDictionaryItem> Filtered =>
+        string.IsNullOrWhiteSpace(search)
+            ? Current
+            : Current.Where(i => i.Name.Contains(search.Trim(), StringComparison.CurrentCultureIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = true;
+        try
+        {
+            foreach (var k in Enum.GetValues<SchoolDictionaryKind>())
+            {
+                data[k] = await SchoolDataService.GetItemsAsync(k);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Nie udało się wczytać danych szkoły.");
+            Notify.Show("Nie udało się wczytać danych szkoły.", NotificationType.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        data[kind] = await SchoolDataService.GetItemsAsync(kind);
+    }
+
+    private void SelectKind(SchoolDictionaryKind selected)
+    {
+        if (busy) return;
+        kind = selected;
+        newName = search = "";
+        editingId = null;
+        pendingDelete = null;
+    }
+
+    private async Task AddAsync()
+    {
+        busy = true;
+        try
+        {
+            await SchoolDataService.AddItemAsync(kind, newName);
+            newName = "";
+            await ReloadAsync();
+            Notify.Show("Dodano pozycję.");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            Notify.Show(ex.Message, NotificationType.Error);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Nie udało się dodać pozycji słownika {Kind}.", kind);
+            Notify.Show("Nie udało się dodać pozycji. Spróbuj ponownie.", NotificationType.Error);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private void StartEdit(SchoolDictionaryItem item)
+    {
+        editingId = item.Id;
+        editName = item.Name;
+    }
+
+    private void CancelEdit()
+    {
+        if (!busy) editingId = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (editingId is not { } id) return;
+
+        busy = true;
+        try
+        {
+            await SchoolDataService.UpdateItemAsync(kind, id, editName);
+            editingId = null;
+            await ReloadAsync();
+            Notify.Show("Zmiany zostały zapisane.");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            Notify.Show(ex.Message, NotificationType.Error);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Nie udało się zapisać pozycji {Kind} {ItemId}.", kind, id);
+            Notify.Show("Nie udało się zapisać zmian. Spróbuj ponownie.", NotificationType.Error);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private void CancelDelete()
+    {
+        if (!busy) pendingDelete = null;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (pendingDelete is null) return;
+
+        var item = pendingDelete;
+        busy = true;
+        try
+        {
+            await SchoolDataService.RemoveItemAsync(kind, item.Id);
+            await ReloadAsync();
+            Notify.Show("Pozycja została usunięta.");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            Notify.Show(ex.Message, NotificationType.Error);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Nie udało się usunąć pozycji {Kind} {ItemId}.", kind, item.Id);
+            Notify.Show("Nie udało się usunąć pozycji. Spróbuj ponownie.", NotificationType.Error);
+        }
+        finally
+        {
+            busy = false;
+            pendingDelete = null;
+        }
+    }
+}

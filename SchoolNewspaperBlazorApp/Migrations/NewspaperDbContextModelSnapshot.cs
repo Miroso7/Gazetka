@@ -166,7 +166,188 @@ namespace SchoolNewspaperBlazorApp.Migrations
                         {
                             Id = 7,
                             PermissionName = 7
+                        },
+                        new
+                        {
+                            Id = 8,
+                            PermissionName = 8
+                        },
+                        new
+                        {
+                            Id = 9,
+                            PermissionName = 9
+                        },
+                        new
+                        {
+                            Id = 10,
+                            PermissionName = 10
+                        },
+                        new
+                        {
+                            Id = 11,
+                            PermissionName = 11
                         });
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Room", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Rooms");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.SchoolClass", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SchoolClasses");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Subject", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Subjects");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Substitution", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AbsentTeacherId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ClassId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Lesson")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int?>("RoomId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SubjectId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SubstituteTeacherId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AbsentTeacherId");
+
+                    b.HasIndex("ClassId");
+
+                    b.HasIndex("Date");
+
+                    b.HasIndex("RoomId");
+
+                    b.HasIndex("SubjectId");
+
+                    b.HasIndex("SubstituteTeacherId");
+
+                    b.ToTable("Substitutions");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Teacher", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Teachers");
                 });
 
             modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.User", b =>
@@ -254,6 +435,44 @@ namespace SchoolNewspaperBlazorApp.Migrations
                         .HasForeignKey("ArticleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Substitution", b =>
+                {
+                    b.HasOne("SchoolNewspaperBlazorApp.Data.Teacher", "AbsentTeacher")
+                        .WithMany()
+                        .HasForeignKey("AbsentTeacherId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SchoolNewspaperBlazorApp.Data.SchoolClass", "Class")
+                        .WithMany()
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SchoolNewspaperBlazorApp.Data.Room", "Room")
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SchoolNewspaperBlazorApp.Data.Subject", "Subject")
+                        .WithMany()
+                        .HasForeignKey("SubjectId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SchoolNewspaperBlazorApp.Data.Teacher", "SubstituteTeacher")
+                        .WithMany()
+                        .HasForeignKey("SubstituteTeacherId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AbsentTeacher");
+
+                    b.Navigation("Class");
+
+                    b.Navigation("Room");
+
+                    b.Navigation("Subject");
+
+                    b.Navigation("SubstituteTeacher");
                 });
 
             modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.UserPermission", b =>

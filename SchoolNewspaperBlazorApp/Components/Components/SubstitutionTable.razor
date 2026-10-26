@@ -1,0 +1,97 @@
+﻿
+@using System.Globalization
+@using SchoolNewspaperBlazorApp.Data
+
+<div class="subst-table-wrap">
+    <table class="subst-table">
+        <thead>
+            <tr>
+                @if (ShowDate)
+                {
+                    <th scope="col">Dzień</th>
+                }
+                <th scope="col">Lekcja</th>
+                <th scope="col">Klasa</th>
+                <th scope="col">Przedmiot</th>
+                <th scope="col">Nieobecny</th>
+                <th scope="col">Zastępuje</th>
+                <th scope="col">Sala</th>
+                <th scope="col">Uwagi</th>
+                @if (ShowActions)
+                {
+                    <th scope="col"><span class="visually-hidden">Akcje</span></th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Items)
+            {
+                <tr @key="s.Id" class="@(s.IsCancelled ? "is-cancelled" : "")">
+                    @if (ShowDate)
+                    {
+                        <td data-label="Dzień">@s.Date.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)</td>
+                    }
+                    <td data-label="Lekcja"><span class="subst-lesson">@s.Lesson</span></td>
+                    <td data-label="Klasa"><strong>@Dash(s.Class?.Name)</strong></td>
+                    <td data-label="Przedmiot">@Dash(s.Subject?.Name)</td>
+                    <td data-label="Nieobecny">@Dash(s.AbsentTeacher?.Name)</td>
+                    <td data-label="Zastępuje">
+                        @if (s.IsCancelled)
+                        {
+                            <span class="subst-chip subst-chip--cancelled">Lekcja odwołana</span>
+                        }
+                        else
+                        {
+                            <span class="subst-chip subst-chip--sub">@Dash(s.SubstituteTeacher?.Name)</span>
+                        }
+                    </td>
+                    <td data-label="Sala">@Dash(s.Room?.Name)</td>
+                    <td data-label="Uwagi" class="subst-note">@(string.IsNullOrWhiteSpace(s.Note) ? "–" : s.Note)</td>
+                    @if (ShowActions)
+                    {
+                        <td class="subst-table__actions">
+                            @if (CanEdit)
+                            {
+                                <button type="button" class="icon-btn" title="Edytuj" aria-label="Edytuj zastępstwo"
+                                        @onclick="() => OnEdit.InvokeAsync(s)">
+                                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
+                                </button>
+                            }
+                            @if (CanDelete)
+                            {
+                                <button type="button" class="icon-btn icon-btn--danger" title="Usuń" aria-label="Usuń zastępstwo"
+                                        @onclick="() => OnDelete.InvokeAsync(s)">
+                                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" /></svg>
+                                </button>
+                            }
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    // tabela zastępstw używana na stronie publicznej (/zastepstwa) i w panelu admina
+    [Parameter]
+    public List<Substitution> Items { get; set; } = new();
+
+    // kolumna z dniem (w widoku wszystkich dni)
+    [Parameter]
+    public bool ShowDate { get; set; }
+
+    // przyciski edycji i usuwania (tylko w panelu)
+    [Parameter]
+    public bool CanEdit { get; set; }
+    [Parameter]
+    public bool CanDelete { get; set; }
+    [Parameter]
+    public EventCallback<Substitution> OnEdit { get; set; }
+    [Parameter]
+    public EventCallback<Substitution> OnDelete { get; set; }
+
+    private bool ShowActions => CanEdit || CanDelete;
+
+    private static string Dash(string? value) => string.IsNullOrWhiteSpace(value) ? "–" : value;
+}

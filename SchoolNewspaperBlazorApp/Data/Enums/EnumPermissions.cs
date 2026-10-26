@@ -10,5 +10,9 @@
         ManagePermissions = 5,
         AddUser = 6,
         Master = 7,
+        AddSubstitution = 8,
+        EditSubstitution = 9,
+        DeleteSubstitution = 10,
+        ManageSchoolData = 11,
     }
 }
