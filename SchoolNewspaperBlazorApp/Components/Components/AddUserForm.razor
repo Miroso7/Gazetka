@@ -26,8 +26,9 @@
             }
         </select>
 
-        <label class="form-label">Hasło</label>
-        <input @bind="Password" type="password" class="form-control mb-4" placeholder="Hasło" />
+        <label class="form-label">Hasło tymczasowe</label>
+        <input @bind="Password" type="password" class="form-control mb-1" placeholder="Hasło tymczasowe" />
+        <div class="form-text mb-4">Użytkownik zmieni je na własne od razu po pierwszym zalogowaniu.</div>
 
         <button type="submit" class="btn btn-primary w-100">Dodaj</button>
     </form>
@@ -53,7 +54,7 @@
         {
             await AuthService.AddUserAsync(FirstName, LastName, Password, Email, Role);
             FirstName = LastName = Password = Email = string.Empty;
-            Notify.Show("Dodano użytkownika.");
+            Notify.Show("Dodano użytkownika. Przy pierwszym logowaniu musi ustawić własne hasło.");
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
         {
