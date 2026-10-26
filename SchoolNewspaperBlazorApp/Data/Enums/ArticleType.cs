@@ -54,6 +54,12 @@
             _ => "Nie ma jeszcze żadnych artykułów."
         };
 
+        // Kategorie do wyboru w formularzu i na zakładkach strony głównej. „Zastępstwa” mają własną stronę,
+        // więc nie są już kategorią artykułów (wartość zostaje w enumie, bo stare artykuły mają ją w bazie).
+        // keep – typ edytowanego artykułu, żeby stary artykuł z tym typem dało się nadal edytować.
+        public static IEnumerable<ArticleType> Selectable(ArticleType? keep = null) =>
+            Enum.GetValues<ArticleType>().Where(t => t != ArticleType.Substitute || t == keep);
+
         // używane w nazwach klas CSS, np. article-card__type--events
         public static string CssName(this ArticleType type) => type.ToString().ToLowerInvariant();
     }

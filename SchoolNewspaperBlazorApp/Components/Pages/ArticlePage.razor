@@ -126,14 +126,9 @@ else
             </dl>
         }
 
-        <div class="ap-body">
-            @for (var i = 0; i < Paragraphs.Count; i++)
-            {
-                <p class="@(i == 0 ? "ap-lead" : null)">@Paragraphs[i]</p>
-            }
-        </div>
+        <ArticleBody Text="@article.Text" Photos="@(galleryImages.Select(i => i.Url).ToList())" Title="@article.Title" />
 
-        <ArticleGallery Images="galleryImages" Title="@article.Title" />
+        <ArticleGallery Images="remainingGalleryImages" Title="@article.Title" />
 
         <footer class="ap-foot">
             <div class="ap-foot__author">
@@ -154,6 +149,8 @@ else
     private Article? article;
     private string? imageUrl;
     private List<ArticleImageDto> galleryImages = new();
+    // zdjęcia wstawione w treść ([foto:N]) nie powtarzają się w galerii pod artykułem
+    private List<ArticleImageDto> remainingGalleryImages = new();
     private bool isLoading = true;
     private bool loadFailed;
     private bool copied;
@@ -204,6 +201,7 @@ else
         article = null;
         imageUrl = null;
         galleryImages = new();
+        remainingGalleryImages = new();
 
         try
         {
@@ -219,10 +217,15 @@ else
                     imageUrl = $"/Images/{Uri.EscapeDataString(fileName)}";
                 }
 
-                var text = (article.Text ?? "").Replace("\r\n", "\n").Trim();
-                Paragraphs = text
-                    .Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                WordCount = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+                var parts = ArticleBodyMarkers.Split(article.Text);
+                var used = ArticleBodyMarkers.UsedPhotos(parts);
+                remainingGalleryImages = galleryImages
+                    .Where((_, index) => !used.Contains(index + 1))
+                    .ToList();
+
+                // markery zdjęć nie wchodzą do opisu strony ani do liczby słów
+                Paragraphs = parts.Where(p => p.Text is not null).Select(p => p.Text!).ToList();
+                WordCount = Paragraphs.Sum(p => p.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length);
             }
         }
         catch (Exception ex)

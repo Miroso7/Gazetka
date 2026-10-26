@@ -38,7 +38,7 @@
         <div class="type-tabs__list">
             <a class="type-tab @(selectedType is null ? "is-active" : "")" href="/#aktualnosci"
                aria-current="@(selectedType is null ? "page" : null)">Wszystkie</a>
-            @foreach (var type in Enum.GetValues<ArticleType>())
+            @foreach (var type in ArticleTypeExtensions.Selectable())
             {
                 <a class="type-tab @(selectedType == type ? "is-active" : "")" href="@($"/?typ={type}#aktualnosci")"
                    aria-current="@(selectedType == type ? "page" : null)">@type.Label()</a>
@@ -65,7 +65,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        selectedType = Enum.TryParse<ArticleType>(TypeQuery, true, out var type) && Enum.IsDefined(type)
+        selectedType = Enum.TryParse<ArticleType>(TypeQuery, true, out var type) && Enum.IsDefined(type) && type != ArticleType.Substitute
             ? type
             : null;
 

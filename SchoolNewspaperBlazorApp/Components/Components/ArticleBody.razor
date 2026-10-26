@@ -1,0 +1,40 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+
+<div class="ap-body">
+    @{
+        var leadDone = false;
+    }
+    @foreach (var part in parts)
+    {
+        if (part.Photo is int number)
+        {
+            // znacznik wskazujący nieistniejące zdjęcie jest po prostu pomijany
+            if (number >= 1 && number <= Photos.Count)
+            {
+                <figure class="ap-inline">
+                    <img src="@Photos[number - 1]" alt="@Title – zdjęcie @number" class="ap-inline__img" loading="lazy" decoding="async" />
+                </figure>
+            }
+        }
+        else
+        {
+            <p class="@(leadDone ? null : "ap-lead")">@part.Text</p>
+            leadDone = true;
+        }
+    }
+</div>
+
+@code {
+    // treść artykułu ze znacznikami [foto:N]
+    [Parameter] public string? Text { get; set; }
+    // adresy zdjęć galerii w kolejności numeracji (zdjęcie nr 1 = pierwszy element)
+    [Parameter] public IReadOnlyList<string> Photos { get; set; } = Array.Empty<string>();
+    [Parameter] public string? Title { get; set; }
+
+    private IReadOnlyList<ArticleBodyPart> parts = Array.Empty<ArticleBodyPart>();
+
+    protected override void OnParametersSet()
+    {
+        parts = ArticleBodyMarkers.Split(Text);
+    }
+}

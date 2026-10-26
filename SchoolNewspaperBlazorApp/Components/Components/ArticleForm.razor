@@ -6,6 +6,7 @@
 @inject IArticleService articleService
 @inject IFileService fileService
 @inject IPermissionService permissionService
+@inject IJSRuntime JS
 
 <div class="add-article-form">
     <h1 class="add-article-form__title">@(IsEditing ? "Edytuj artykuł" : "Dodaj artykuł")</h1>
@@ -33,7 +34,7 @@
     <form @onsubmit="SaveArticle" @onsubmit:preventDefault>
         <label class="form-label">Kategoria *</label>
         <select @bind="type" @bind:after="OnTypeChanged" class="form-select mb-3">
-            @foreach (var option in Enum.GetValues<ArticleType>())
+            @foreach (var option in ArticleTypeExtensions.Selectable(ArticleToEdit?.Type))
             {
                 <option value="@option">@option.Label()</option>
             }
@@ -43,7 +44,10 @@
         <input @bind="title" class="form-control mb-3" placeholder="Wpisz tytuł..." />
 
         <label class="form-label">Treść *</label>
-        <textarea @bind="text" class="form-control mb-3" rows="6" placeholder="Treść artykułu..."></textarea>
+        <textarea @ref="textArea" @bind="text" class="form-control mb-1" rows="6" placeholder="Treść artykułu..."></textarea>
+        <div class="form-text mb-3">
+            Akapity oddzielaj pustą linią. Zdjęcie z galerii wstawisz w miejsce kursora przyciskiem „W tekst” przy miniaturze.
+        </div>
 
         @if (typeFields.Count > 0)
         {
@@ -101,6 +105,9 @@
                 {
                     <li @key="photo" class="gallery-edit__item">
                         <img src="@photo.Url" alt="Zdjęcie z galerii" loading="lazy" decoding="async" />
+                        <span class="gallery-edit__num" title="Numer zdjęcia w galerii">@NumberOf(photo)</span>
+                        <button type="button" class="gallery-edit__insert" @onclick="() => InsertPhotoIntoText(NumberOf(photo))"
+                                title="Wstaw to zdjęcie w treść artykułu">W tekst</button>
                         <button type="button" class="gallery-edit__remove" @onclick="() => RemoveExistingPhoto(photo)"
                                 aria-label="Usuń zdjęcie z galerii" title="Usuń zdjęcie">
                             <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
@@ -112,6 +119,9 @@
                     <li @key="photo" class="gallery-edit__item">
                         <img src="@photo.Preview" alt="Nowe zdjęcie do galerii" decoding="async" />
                         <span class="gallery-edit__badge">Nowe</span>
+                        <span class="gallery-edit__num" title="Numer zdjęcia w galerii">@NumberOf(photo)</span>
+                        <button type="button" class="gallery-edit__insert" @onclick="() => InsertPhotoIntoText(NumberOf(photo))"
+                                title="Wstaw to zdjęcie w treść artykułu">W tekst</button>
                         <button type="button" class="gallery-edit__remove" @onclick="() => RemoveStagedPhoto(photo)"
                                 aria-label="Usuń zdjęcie z galerii" title="Usuń zdjęcie">
                             <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
@@ -126,6 +136,55 @@
             Zdjęcia w galerii: @GalleryCount / @IArticleService.MaxGalleryImages (JPG, PNG, GIF lub WebP, do 5 MB każde).
             Zmiany zapiszą się po kliknięciu „@(IsEditing ? "Zapisz zmiany" : "Dodaj")”.
         </div>
+
+        <button type="button" class="btn btn-outline-primary w-100 mb-3" @onclick="() => showPreview = !showPreview"
+                aria-expanded="@(showPreview ? "true" : "false")">@(showPreview ? "Ukryj podgląd" : "Podgląd artykułu")</button>
+
+        @if (showPreview)
+        {
+            <div class="article-preview">
+                <span class="article-preview__label">Podgląd – tak artykuł zobaczą czytelnicy</span>
+                <article class="ap">
+                    <header class="ap-head">
+                        <span class="ap-kicker">@type.Label()</span>
+                        <h1 class="ap-title">@(string.IsNullOrWhiteSpace(title) ? "Tytuł artykułu" : title)</h1>
+                        <div class="ap-meta">
+                            <div class="ap-meta__text">
+                                <span class="ap-meta__author">@(string.IsNullOrWhiteSpace(author) ? "Autor" : author)</span>
+                                <span class="ap-meta__sub">@PreviewDate.ToString("dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture)</span>
+                            </div>
+                        </div>
+                    </header>
+
+                    @if (previewImage != null)
+                    {
+                        <figure class="ap-figure">
+                            <img src="@previewImage" alt="@title" class="ap-figure__img" />
+                        </figure>
+                    }
+
+                    @if (PreviewDetails.Count > 0)
+                    {
+                        <dl class="ap-details">
+                            @foreach (var (label, value) in PreviewDetails)
+                            {
+                                <div class="ap-details__item">
+                                    <dt>@label</dt>
+                                    <dd>@value</dd>
+                                </div>
+                            }
+                        </dl>
+                    }
+
+                    <ArticleBody Text="@text" Photos="PreviewPhotos" Title="@title" />
+
+                    @if (GalleryCount > 0)
+                    {
+                        <p class="form-text">Pod artykułem pojawi się galeria zdjęć, które nie zostały wstawione w treść.</p>
+                    }
+                </article>
+            </div>
+        }
 
         <button type="submit" class="btn btn-primary w-100">@(IsEditing ? "Zapisz zmiany" : "Dodaj")</button>
         @if (IsEditing)
@@ -162,6 +221,41 @@
     {
         public required byte[] Bytes { get; init; }
         public required string Preview { get; init; }
+    }
+
+    private ElementReference textArea;
+    private bool showPreview;
+
+    // numer zdjęcia w galerii (od 1): najpierw zapisane, potem nowe – tak samo jak kolejność na stronie artykułu
+    private int NumberOf(ArticleImageDto photo) => existingPhotos.IndexOf(photo) + 1;
+    private int NumberOf(StagedPhoto photo) => existingPhotos.Count + stagedPhotos.IndexOf(photo) + 1;
+
+    private DateTime PreviewDate => ArticleToEdit?.PublishDate ?? DateTime.Now;
+
+    private IReadOnlyList<string> PreviewPhotos =>
+        existingPhotos.Select(p => p.Url).Concat(stagedPhotos.Select(p => p.Preview)).ToList();
+
+    private List<(string Label, string Value)> PreviewDetails
+    {
+        get
+        {
+            try
+            {
+                return ArticleFields.Display(new Article
+                {
+                    Title = title,
+                    Text = text,
+                    Author = author,
+                    Type = type,
+                    Details = ArticleFields.ToJson(type, details)
+                });
+            }
+            catch (InvalidOperationException)
+            {
+                // pola szczegółów jeszcze niepoprawne – w podglądzie je pomijamy, błąd pokaże się przy zapisie
+                return new();
+            }
+        }
     }
 
     private int GalleryCount => existingPhotos.Count + stagedPhotos.Count;
@@ -306,13 +400,37 @@
 
     private void RemoveExistingPhoto(ArticleImageDto photo)
     {
+        var number = NumberOf(photo);
         existingPhotos.Remove(photo);
         removedImageIds.Add(photo.Id);
+        text = ArticleBodyMarkers.OnPhotoRemoved(text, number);
     }
 
     private void RemoveStagedPhoto(StagedPhoto photo)
     {
+        var number = NumberOf(photo);
         stagedPhotos.Remove(photo);
+        text = ArticleBodyMarkers.OnPhotoRemoved(text, number);
+    }
+
+    // wstawia znacznik zdjęcia jako osobny akapit w miejscu kursora (albo na końcu, gdy nie da się go odczytać)
+    private async Task InsertPhotoIntoText(int number)
+    {
+        var position = text.Length;
+        try
+        {
+            position = await JS.InvokeAsync<int>("articleForm.caret", textArea);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException)
+        {
+            logger.LogDebug(ex, "Nie udało się odczytać pozycji kursora w treści artykułu.");
+        }
+
+        if (position < 0 || position > text.Length)
+        {
+            position = text.Length;
+        }
+        text = text.Insert(position, $"\n\n{ArticleBodyMarkers.Marker(number)}\n\n");
     }
 
     private async Task ChoosePhoto(InputFileChangeEventArgs e)
@@ -401,6 +519,7 @@
         title = text = author = "";
         details = new();
         previewImage = null;
+        showPreview = false;
         stagedPhotos.Clear();
         galleryInputKey++;
         file = null;
