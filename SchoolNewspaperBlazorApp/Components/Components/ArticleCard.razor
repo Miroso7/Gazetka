@@ -14,7 +14,7 @@
         var article = Articles[i];
         var imageUrl = GetImageUrl(article.FileId);
         var featured = !permissions && Articles.Count > 2 && i == 0;
-        var isNewest = !permissions && Articles.Count > 1 && article.Id == NewestId;
+        var isNewest = !permissions && Articles.Count > 1 && article.Id == newestId;
 
         <article @key="article.Id"
                  class="article-card article-card--@article.Type.CssName() @(featured ? "article-card--featured" : "") @(permissions ? "article-card--admin" : "")"
@@ -141,10 +141,13 @@
         </span>
     </div>;
 
-    private int NewestId => Articles.Count == 0 ? -1 : Articles.Max(a => a.Id);
+    // najnowsze ID liczone raz na zmianę parametrów, a nie osobno dla każdej karty
+    private int newestId = -1;
 
     protected override async Task OnParametersSetAsync()
     {
+        newestId = Articles.Count == 0 ? -1 : Articles.Max(a => a.Id);
+
         foreach (var fileId in Articles.Select(a => a.FileId).Distinct())
         {
             if (imageUrls.ContainsKey(fileId)) continue;

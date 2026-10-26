@@ -171,19 +171,19 @@ namespace SchoolNewspaperBlazorApp.Repository
             _logger.LogDebug("Odebrano (soft delete) uprawnienie {Permission} użytkownikowi {UserId}.", permission, userId);
         }
 
-        // Cookie z /auth/login zawiera adres e-mail w claimie Name.
+        // Cookie z /auth/login zawiera niezmienne ID konta w claimie NameIdentifier (e-mail w Name jest tylko do wyświetlania,
+        // bo adres może zostać zmieniony albo zwolniony i przypisany komuś innemu).
+        // Zwraca 0, gdy cookie nie ma ID (np. stare cookie sprzed zmiany) albo konto już nie istnieje.
         private static async Task<int> ResolveUserIdAsync(NewspaperDbContext context, ClaimsPrincipal principal)
         {
-            var email = principal.FindFirst(ClaimTypes.Name)?.Value;
-            if (string.IsNullOrWhiteSpace(email))
+            var claim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(claim, out var userId) || userId <= 0)
             {
                 return 0;
             }
 
-            return await context.Users
-                .Where(u => u.Email == email)
-                .Select(u => u.Id)
-                .FirstOrDefaultAsync();
+            var exists = await context.Users.AnyAsync(u => u.Id == userId);
+            return exists ? userId : 0;
         }
     }
 }

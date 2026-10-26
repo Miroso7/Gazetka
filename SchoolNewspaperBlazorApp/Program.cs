@@ -176,7 +176,8 @@ namespace SchoolNewspaperBlazorApp
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, email),
-                    new Claim(SessionRegistry.SessionClaimType, sessions.Create(email))
+                    new Claim(ClaimTypes.NameIdentifier, login.UserId.ToString()),
+                    new Claim(SessionRegistry.SessionClaimType, sessions.Create(login.UserId.ToString()))
                 };
                 if (login.MustChangePassword)
                 {
@@ -218,9 +219,15 @@ namespace SchoolNewspaperBlazorApp
 
                 var form = await context.Request.ReadFormAsync();
                 string email = context.User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
+                string userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+                if (!int.TryParse(userIdClaim, out var userId))
+                {
+                    // cookie bez ID konta (sprzed zmiany): trzeba zalogować się od nowa
+                    return Results.Redirect("/login");
+                }
 
                 var result = await authService.ChangePasswordAsync(
-                    email,
+                    userId,
                     form["CurrentPassword"].ToString(),
                     form["NewPassword"].ToString(),
                     form["ConfirmPassword"].ToString());
@@ -233,12 +240,13 @@ namespace SchoolNewspaperBlazorApp
                 // po zmianie hasła kończymy wszystkie dotychczasowe sesje konta (także na innych urządzeniach)
                 // i logujemy tę przeglądarkę od nowa, już bez wymogu zmiany hasła
                 sessions.Revoke(context.User.FindFirst(SessionRegistry.SessionClaimType)?.Value);
-                sessions.RevokeAllForUser(email);
+                sessions.RevokeAllForUser(userIdClaim);
 
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, email),
-                    new Claim(SessionRegistry.SessionClaimType, sessions.Create(email))
+                    new Claim(ClaimTypes.NameIdentifier, userIdClaim),
+                    new Claim(SessionRegistry.SessionClaimType, sessions.Create(userIdClaim))
                 };
                 var identity = new ClaimsIdentity(
                     claims,

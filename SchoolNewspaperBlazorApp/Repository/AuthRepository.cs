@@ -36,6 +36,16 @@ namespace SchoolNewspaperBlazorApp.Repository
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
 
+        // Zwraca null, gdy nie ma użytkownika o takim ID (albo został usunięty).
+        public async Task<User?> GetUserByIdAsync(int userId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == userId);
+        }
+
         public async Task<bool> EmailExistsAsync(string email)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();

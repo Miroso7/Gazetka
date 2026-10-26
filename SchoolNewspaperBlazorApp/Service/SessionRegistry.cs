@@ -76,7 +76,7 @@ namespace SchoolNewspaperBlazorApp.Service
             var revoked = 0;
             foreach (var session in _sessions)
             {
-                if (string.Equals(session.Value.UserKey, userKey, StringComparison.OrdinalIgnoreCase)
+                if (string.Equals(session.Value.UserKey, userKey, StringComparison.Ordinal)
                     && _sessions.TryRemove(session.Key, out _))
                 {
                     revoked++;

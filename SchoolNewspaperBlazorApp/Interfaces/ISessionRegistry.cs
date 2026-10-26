@@ -4,7 +4,7 @@
     // również w już połączonych obwodach Blazora, które trzymają stare uwierzytelnienie w pamięci.
     public interface ISessionRegistry
     {
-        // userKey (e-mail konta) pozwala później unieważnić wszystkie sesje tego użytkownika naraz.
+        // userKey (niezmienne ID konta jako tekst) pozwala później unieważnić wszystkie sesje tego użytkownika naraz.
         string Create(string userKey);
         bool IsActive(string? sessionId);
         // Przedłuża aktywną sesję (odpowiednik SlidingExpiration cookie).

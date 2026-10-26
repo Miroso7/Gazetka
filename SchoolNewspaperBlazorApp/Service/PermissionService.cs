@@ -142,6 +142,9 @@ namespace SchoolNewspaperBlazorApp.Service
                 throw new InvalidOperationException("Nie znaleziono użytkownika.");
             }
 
+            // usunięte konto traci wszystkie otwarte sesje (także w już połączonych obwodach Blazora)
+            _sessions.RevokeAllForUser(userId.ToString());
+
             _logger.LogInformation("Użytkownik {UserId} usunął użytkownika {TargetUserId}.", currentId, userId);
         }
 

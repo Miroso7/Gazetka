@@ -182,7 +182,7 @@ namespace SchoolNewspaperBlazorApp.Service
             {
                 var verified = VerifyHash(user.Password, password);
                 LogLoginResult(user.Id, verified);
-                return verified ? new LoginResult(true, user.MustChangePassword) : LoginResult.Failed;
+                return verified ? new LoginResult(true, user.MustChangePassword, user.Id) : LoginResult.Failed;
             }
 
             // Stare konto z hasłem zapisanym jawnie: porównujemy w C# (rozróżnia wielkość liter),
@@ -197,12 +197,12 @@ namespace SchoolNewspaperBlazorApp.Service
             await _authRepository.UpdateUserAsync(user);
             _logger.LogInformation("Zamieniono hasło użytkownika {UserId} zapisane jawnie na hash.", user.Id);
             LogLoginResult(user.Id, true);
-            return new LoginResult(true, user.MustChangePassword);
+            return new LoginResult(true, user.MustChangePassword, user.Id);
         }
 
-        public async Task<ChangePasswordResult> ChangePasswordAsync(string email, string currentPassword, string newPassword, string confirmPassword)
+        public async Task<ChangePasswordResult> ChangePasswordAsync(int userId, string currentPassword, string newPassword, string confirmPassword)
         {
-            if (string.IsNullOrWhiteSpace(email))
+            if (userId <= 0)
             {
                 return ChangePasswordResult.UserNotFound;
             }
@@ -223,7 +223,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 return ChangePasswordResult.TooLong;
             }
 
-            var user = await _authRepository.GetUserByEmailAsync(email.Trim());
+            var user = await _authRepository.GetUserByIdAsync(userId);
             if (user is null)
             {
                 _logger.LogWarning("Zmiana hasła odrzucona: nie znaleziono konta zalogowanej osoby.");

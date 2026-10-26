@@ -7,6 +7,7 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Repository
     {
         Task AddUserAsync(User user);
         Task<User?> GetUserByEmailAsync(string email);
+        Task<User?> GetUserByIdAsync(int userId);
         Task<bool> EmailExistsAsync(string email);
         Task UpdateUserAsync(User user);
         Task<UserProfile?> GetProfileAsync(int userId);
