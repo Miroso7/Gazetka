@@ -4,3 +4,4 @@ window.articleForm = {
         return element && typeof element.selectionStart === "number" ? element.selectionStart : -1;
     }
 };
+

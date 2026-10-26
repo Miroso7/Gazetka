@@ -6,26 +6,57 @@
 @inject IArticleService articleService
 
 <section class="hero">
-    <span class="hero__badge">Gazetka Technikum Informatycznego</span>
-    <h1 class="hero__title">Wszystko, co dzieje się w naszej szkole</h1>
-    <p class="hero__lead">
-        Aktualności, wydarzenia i artykuły uczniów w jednym miejscu.
-        Sprawdź, co nowego w świecie technologii i życia szkoły.
-    </p>
-    <div class="hero__actions">
-        <a class="btn btn-white" href="#aktualnosci">Czytaj aktualności</a>
-        <AuthorizeView>
-            <Authorized>
-                <form method="post" action="/auth/logout" style="display: contents;">
-                    <AntiforgeryToken />
-                    <button type="submit" class="btn btn-ghost">Wyloguj się</button>
-                </form>
-            </Authorized>
-            <NotAuthorized>
-                <a class="btn btn-ghost" href="/login">Zaloguj się</a>
-            </NotAuthorized>
-        </AuthorizeView>
+    <div class="hero__content">
+        <span class="hero__badge">Gazetka Elitarnego Technikum Informatycznego</span>
+        <h1 class="hero__title">Wszystko, co dzieje się w <span class="hero__accent">naszej szkole</span></h1>
+        <p class="hero__lead">
+            Aktualności, wydarzenia i artykuły uczniów w jednym miejscu.
+            Sprawdź, co nowego w świecie technologii i życia szkoły.
+        </p>
+        <div class="hero__actions">
+            <a class="btn btn-white hero__cta" href="#aktualnosci">
+                Czytaj aktualności
+                <svg class="hero__cta-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7" /></svg>
+            </a>
+        </div>
     </div>
+
+    <aside class="hero__panel" aria-label="Skróty do kategorii">
+        <span class="hero__panel-title">Zacznij od…</span>
+        <ul class="hero__links">
+            @for (var i = 0; i < heroTypes.Length; i++)
+            {
+                var heroType = heroTypes[i];
+                <li style="--n:@i">
+                    <a class="hero__link" href="@($"/?typ={heroType}#aktualnosci")">
+                        <span class="hero__link-ico" aria-hidden="true">
+                            @switch (heroType)
+                            {
+                                case ArticleType.Events:
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 11h18" /></svg>
+                                    break;
+                                case ArticleType.Announcements:
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1Z" /><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" /></svg>
+                                    break;
+                                default:
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" /><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z" /></svg>
+                                    break;
+                            }
+                        </span>
+                        <span class="hero__link-text">
+                            <strong>@heroType.Label()</strong>
+                            <small>@heroType.Description()</small>
+                        </span>
+                        <svg class="hero__link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                    </a>
+                </li>
+            }
+        </ul>
+        <a class="hero__panel-more" href="/#aktualnosci">
+            Wszystkie artykuły
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+        </a>
+    </aside>
 </section>
 
 <section class="news-zone">
@@ -62,6 +93,9 @@
     public List<Article> articles = new List<Article>();
 
     private ArticleType? selectedType;
+
+    // skróty w sekcji powitalnej
+    private static readonly ArticleType[] heroTypes = { ArticleType.News, ArticleType.Events, ArticleType.Announcements };
 
     protected override async Task OnParametersSetAsync()
     {

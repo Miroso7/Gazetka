@@ -140,52 +140,6 @@
         <button type="button" class="btn btn-outline-primary w-100 mb-3" @onclick="() => showPreview = !showPreview"
                 aria-expanded="@(showPreview ? "true" : "false")">@(showPreview ? "Ukryj podgląd" : "Podgląd artykułu")</button>
 
-        @if (showPreview)
-        {
-            <div class="article-preview">
-                <span class="article-preview__label">Podgląd – tak artykuł zobaczą czytelnicy</span>
-                <article class="ap">
-                    <header class="ap-head">
-                        <span class="ap-kicker">@type.Label()</span>
-                        <h1 class="ap-title">@(string.IsNullOrWhiteSpace(title) ? "Tytuł artykułu" : title)</h1>
-                        <div class="ap-meta">
-                            <div class="ap-meta__text">
-                                <span class="ap-meta__author">@(string.IsNullOrWhiteSpace(author) ? "Autor" : author)</span>
-                                <span class="ap-meta__sub">@PreviewDate.ToString("dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture)</span>
-                            </div>
-                        </div>
-                    </header>
-
-                    @if (previewImage != null)
-                    {
-                        <figure class="ap-figure">
-                            <img src="@previewImage" alt="@title" class="ap-figure__img" />
-                        </figure>
-                    }
-
-                    @if (PreviewDetails.Count > 0)
-                    {
-                        <dl class="ap-details">
-                            @foreach (var (label, value) in PreviewDetails)
-                            {
-                                <div class="ap-details__item">
-                                    <dt>@label</dt>
-                                    <dd>@value</dd>
-                                </div>
-                            }
-                        </dl>
-                    }
-
-                    <ArticleBody Text="@text" Photos="PreviewPhotos" Title="@title" />
-
-                    @if (GalleryCount > 0)
-                    {
-                        <p class="form-text">Pod artykułem pojawi się galeria zdjęć, które nie zostały wstawione w treść.</p>
-                    }
-                </article>
-            </div>
-        }
-
         <button type="submit" class="btn btn-primary w-100">@(IsEditing ? "Zapisz zmiany" : "Dodaj")</button>
         @if (IsEditing)
         {
@@ -193,6 +147,52 @@
         }
     </form>
 </div>
+
+@if (showPreview)
+{
+    <div class="article-preview">
+        <span class="article-preview__label">Podgląd – tak artykuł zobaczą czytelnicy</span>
+        <article class="ap">
+            <header class="ap-head">
+                <span class="ap-kicker">@type.Label()</span>
+                <h1 class="ap-title">@(string.IsNullOrWhiteSpace(title) ? "Tytuł artykułu" : title)</h1>
+                <div class="ap-meta">
+                    <div class="ap-meta__text">
+                        <span class="ap-meta__author">@(string.IsNullOrWhiteSpace(author) ? "Autor" : author)</span>
+                        <span class="ap-meta__sub">@PreviewDate.ToString("dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture)</span>
+                    </div>
+                </div>
+            </header>
+
+            @if (previewImage != null)
+            {
+                <figure class="ap-figure">
+                    <img src="@previewImage" alt="@title" class="ap-figure__img" />
+                </figure>
+            }
+
+            @if (PreviewDetails.Count > 0)
+            {
+                <dl class="ap-details">
+                    @foreach (var (label, value) in PreviewDetails)
+                    {
+                        <div class="ap-details__item">
+                            <dt>@label</dt>
+                            <dd>@value</dd>
+                        </div>
+                    }
+                </dl>
+            }
+
+            <ArticleBody Text="@text" Photos="PreviewPhotos" Title="@title" />
+
+            @if (GalleryCount > 0)
+            {
+                <p class="form-text">Pod artykułem pojawi się galeria zdjęć, które nie zostały wstawione w treść.</p>
+            }
+        </article>
+    </div>
+}
 
 @code {
     private string title = "";
