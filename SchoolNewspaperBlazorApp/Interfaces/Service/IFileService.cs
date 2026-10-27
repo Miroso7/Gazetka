@@ -10,6 +10,10 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
         // Wgrywa kilka zdjęć naraz (np. do galerii) i zwraca ich Id w tej samej kolejności.
         // Gdy któreś jest nieprawidłowe, nie zapisuje żadnego.
         Task<List<int>> UploadImages(IReadOnlyList<byte[]> images);
+        // Maksymalny rozmiar zdjęcia profilowego (po zmniejszeniu w przeglądarce zwykle zajmuje kilkaset KB).
+        const int MaxAvatarBytes = 2 * 1024 * 1024;
+        // Wgrywa zdjęcie profilowe i zwraca Id pliku. Może to zrobić każdy zalogowany użytkownik (bez uprawnień do artykułów).
+        Task<int> UploadAvatarAsync(byte[] image);
         // Czy zawartość pliku to obsługiwane zdjęcie (JPG, PNG, GIF, WebP).
         bool IsSupportedImage(byte[] bytes);
         // Usuwa zdjęcia (wpis w bazie i plik) przy edycji artykułu; wymaga edycji albo usuwania artykułów.

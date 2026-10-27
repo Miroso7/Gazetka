@@ -13,6 +13,8 @@ namespace SchoolNewspaperBlazorApp.Data
         public bool MustChangePassword { get; set; }
         public required string Email { get; set; }
         public DateTime RegisterDate { get; set; }
+        // zdjęcie profilowe (Id wpisu w tabeli plików); null = brak zdjęcia, w podpisach pokazują się inicjały
+        public int? AvatarFileId { get; set; }
         public string AddBy { get; set; } = string.Empty;
         public ICollection<UserPermission> UserPermission { get; set; } = new List<UserPermission>();
 

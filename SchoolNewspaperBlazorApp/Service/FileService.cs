@@ -83,6 +83,21 @@ namespace SchoolNewspaperBlazorApp.Service
             }
             return ids;
         }
+        public async Task<int> UploadAvatarAsync(byte[] image)
+        {
+            if (await _permissionService.GetMyUserIdAsync() == 0)
+            {
+                _logger.LogWarning("Odmowa wgrania zdjęcia profilowego: użytkownik nie jest zalogowany.");
+                throw new UnauthorizedAccessException("Zaloguj się, aby zmienić zdjęcie profilowe.");
+            }
+
+            if (image.Length > IFileService.MaxAvatarBytes)
+            {
+                throw new InvalidOperationException("Zdjęcie profilowe może mieć maksymalnie 2 MB.");
+            }
+
+            return await StoreImageAsync(image);
+        }
         public bool IsSupportedImage(byte[] bytes) => DetectImageExtension(bytes) is not null;
 
         private async Task<int> StoreImageAsync(byte[] bytes)

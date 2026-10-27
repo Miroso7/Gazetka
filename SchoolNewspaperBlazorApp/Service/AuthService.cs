@@ -18,12 +18,14 @@ namespace SchoolNewspaperBlazorApp.Service
 
         private readonly IAuthRepository _authRepository;
         private readonly IPermissionService _permissionService;
+        private readonly IFileService _fileService;
         private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IAuthRepository authRepository, IPermissionService permissionService, ILogger<AuthService> logger)
+        public AuthService(IAuthRepository authRepository, IPermissionService permissionService, IFileService fileService, ILogger<AuthService> logger)
         {
             _authRepository = authRepository;
             _permissionService = permissionService;
+            _fileService = fileService;
             _logger = logger;
         }
 
@@ -163,6 +165,77 @@ namespace SchoolNewspaperBlazorApp.Service
             _logger.LogInformation("Użytkownik {UserId} zaktualizował dane użytkownika {TargetUserId} (rola {Role}, zmiana e-maila: {EmailChanged}).",
                 myId, userId, role, emailChanged);
         }
+
+        public async Task SetMyAvatarAsync(byte[]? image)
+        {
+            var myId = await _permissionService.GetMyUserIdAsync();
+            if (myId == 0)
+            {
+                throw new UnauthorizedAccessException("Zaloguj się, aby zmienić zdjęcie profilowe.");
+            }
+
+            // najpierw wgrywamy nowe zdjęcie (serwer sprawdza jego zawartość i rozmiar), dopiero potem podmieniamy je w koncie
+            int? fileId = image is null ? null : await _fileService.UploadAvatarAsync(image);
+
+            if (!await _authRepository.SetAvatarAsync(myId, fileId))
+            {
+                throw new InvalidOperationException("Nie znaleziono użytkownika.");
+            }
+
+            _logger.LogInformation("Użytkownik {UserId} {Action} zdjęcie profilowe.", myId, image is null ? "usunął" : "zmienił");
+        }
+
+        public async Task<Dictionary<string, string>> GetAuthorAvatarUrlsAsync(IEnumerable<string> authors)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var wanted = authors
+                .Where(a => !string.IsNullOrWhiteSpace(a))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (wanted.Count == 0)
+            {
+                return result;
+            }
+
+            var users = await _authRepository.GetUserNamesWithAvatarsAsync();
+            if (users.All(u => string.IsNullOrEmpty(u.FileName)))
+            {
+                return result;
+            }
+
+            // podpis -> konta o takim imieniu i nazwisku („Jan Kowalski” i „Kowalski Jan”); przy dwóch takich kontach nie zgadujemy
+            var byName = new Dictionary<string, List<UserNameAvatar>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var user in users)
+            {
+                var keys = new[] { NameKey($"{user.FirstName} {user.LastName}"), NameKey($"{user.LastName} {user.FirstName}") }
+                    .Where(k => k.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase);
+                foreach (var key in keys)
+                {
+                    if (!byName.TryGetValue(key, out var matches))
+                    {
+                        byName[key] = matches = new List<UserNameAvatar>();
+                    }
+                    matches.Add(user);
+                }
+            }
+
+            foreach (var author in wanted)
+            {
+                if (byName.TryGetValue(NameKey(author), out var matches)
+                    && matches.Count == 1
+                    && UserProfile.AvatarUrlFor(matches[0].FileName) is { } url)
+                {
+                    result[author] = url;
+                }
+            }
+
+            return result;
+        }
+
+        // spacje na brzegach i podwójne spacje nie mają znaczenia przy porównaniu podpisu z nazwiskiem konta
+        private static string NameKey(string name) =>
+            string.Join(' ', name.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
         public async Task<LoginResult> LoginAsync(string email, string password)
         {

@@ -16,5 +16,9 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Repository
         Task<bool> UpdateProfileAsync(int userId, string firstName, string lastName, string email, UserRole role);
         // Zapisuje nowy hash hasła i zdejmuje wymóg zmiany hasła. Zwraca false, gdy użytkownik nie istnieje.
         Task<bool> UpdatePasswordAsync(int userId, string passwordHash);
+        // Ustawia zdjęcie profilowe (fileId = null usuwa je) i oznacza poprzedni plik jako usunięty. Zwraca false, gdy użytkownik nie istnieje.
+        Task<bool> SetAvatarAsync(int userId, int? fileId);
+        // Imiona i nazwiska wszystkich kont razem z nazwą pliku zdjęcia profilowego (null = brak zdjęcia).
+        Task<List<UserNameAvatar>> GetUserNamesWithAvatarsAsync();
     }
 }

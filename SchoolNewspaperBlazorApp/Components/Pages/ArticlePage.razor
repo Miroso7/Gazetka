@@ -10,6 +10,7 @@
 @implements IDisposable
 @inject IArticleService ArticleService
 @inject IFileService FileService
+@inject IAuthService AuthService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ILogger<ArticlePage> Logger
@@ -81,7 +82,7 @@ else
             <h1 class="ap-title">@article.Title</h1>
 
             <div class="ap-meta">
-                <span class="ap-avatar" aria-hidden="true">@Initials</span>
+                <AuthorAvatar Name="@article.Author" Url="@authorAvatarUrl" Class="ap-avatar" />
                 <div class="ap-meta__text">
                     <span class="ap-meta__author">@article.Author</span>
                     <span class="ap-meta__sub">
@@ -132,7 +133,7 @@ else
 
         <footer class="ap-foot">
             <div class="ap-foot__author">
-                <span class="ap-avatar ap-avatar--lg" aria-hidden="true">@Initials</span>
+                <AuthorAvatar Name="@article.Author" Url="@authorAvatarUrl" Class="ap-avatar ap-avatar--lg" />
                 <div>
                     <span class="ap-foot__label">Autor artykułu</span>
                     <strong class="ap-foot__name">@article.Author</strong>
@@ -148,6 +149,8 @@ else
 
     private Article? article;
     private string? imageUrl;
+    // zdjęcie profilowe autora (null = podpis pokaże inicjały)
+    private string? authorAvatarUrl;
     private List<ArticleImageDto> galleryImages = new();
     // zdjęcia wstawione w treść ([foto:N]) nie powtarzają się w galerii pod artykułem
     private List<ArticleImageDto> remainingGalleryImages = new();
@@ -172,20 +175,6 @@ else
         }
     }
 
-    private string Initials
-    {
-        get
-        {
-            var parts = (article?.Author ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Length switch
-            {
-                0 => "?",
-                1 => parts[0][..1].ToUpperInvariant(),
-                _ => $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant()
-            };
-        }
-    }
-
     protected override async Task OnParametersSetAsync()
     {
         // przeładuj tylko, gdy zmieni się Id (np. nawigacja z jednego artykułu do drugiego)
@@ -200,6 +189,7 @@ else
         loadFailed = false;
         article = null;
         imageUrl = null;
+        authorAvatarUrl = null;
         galleryImages = new();
         remainingGalleryImages = new();
 
@@ -215,6 +205,17 @@ else
                 if (!string.IsNullOrWhiteSpace(fileName))
                 {
                     imageUrl = $"/Images/{Uri.EscapeDataString(fileName)}";
+                }
+
+                try
+                {
+                    var avatars = await AuthService.GetAuthorAvatarUrlsAsync(new[] { article.Author });
+                    authorAvatarUrl = avatars.TryGetValue(article.Author, out var avatarUrl) ? avatarUrl : null;
+                }
+                catch (Exception ex)
+                {
+                    // bez zdjęcia profilowego artykuł nadal się wyświetla (w podpisie są inicjały)
+                    Logger.LogWarning(ex, "Nie udało się wczytać zdjęcia profilowego autora artykułu {ArticleId}.", article.Id);
                 }
 
                 var parts = ArticleBodyMarkers.Split(article.Text);

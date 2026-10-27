@@ -1,0 +1,32 @@
+﻿@* Awatar autora: zdjęcie profilowe, a gdy go nie ma (albo się nie wczyta) – inicjały. Rozmiar i wygląd ustawia klasa z rodzica. *@
+<span class="author-avatar @Class" aria-hidden="true">
+    <span class="author-avatar__initials">@Initials</span>
+    @if (!string.IsNullOrEmpty(Url))
+    {
+        <img class="author-avatar__img" src="@Url" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'" />
+    }
+</span>
+
+@code {
+    [Parameter]
+    public string? Name { get; set; }
+    [Parameter]
+    public string? Url { get; set; }
+    // dodatkowe klasy CSS (rozmiar, obramowanie)
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string Initials
+    {
+        get
+        {
+            var parts = (Name ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return parts.Length switch
+            {
+                0 => "?",
+                1 => char.ToUpperInvariant(parts[0][0]).ToString(),
+                _ => $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[^1][0])}"
+            };
+        }
+    }
+}

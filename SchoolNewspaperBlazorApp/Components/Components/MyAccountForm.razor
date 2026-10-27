@@ -4,8 +4,11 @@
 @using SchoolNewspaperBlazorApp.Service
 @using Microsoft.Extensions.Logging
 @inject IAuthService AuthService
+@inject IFileService FileService
 @inject NotificationService Notify
 @inject ILogger<MyAccountForm> Logger
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <div class="add-article-form">
     <h1 class="add-article-form__title">Moje konto</h1>
@@ -21,6 +24,53 @@
     else
     {
         <form @onsubmit="SaveAsync" @onsubmit:preventDefault>
+            <div class="avatar-edit">
+                <AuthorAvatar Name="@FullName" Url="@CurrentAvatarUrl" Class="avatar-edit__preview" />
+                <div class="avatar-edit__body">
+                    <h2 class="avatar-edit__title">Zdjęcie profilowe</h2>
+                    <p class="avatar-edit__hint">
+                        JPG, PNG, GIF lub WebP. Zdjęcie pojawi się przy artykułach, w których jako autora wpiszesz swoje imię i nazwisko.
+                    </p>
+                    <div class="avatar-edit__actions @(cropping ? "d-none" : "")">
+                        <label class="btn btn-sm btn-outline-primary avatar-edit__pick">
+                            @(CurrentAvatarUrl is null ? "Dodaj zdjęcie" : "Zmień zdjęcie")
+                            <InputFile @ref="pickInput" @key="avatarInputKey" OnChange="ChooseAvatar" accept="image/*" disabled="@saving" class="visually-hidden" />
+                        </label>
+                        @if (HasAvatarChange)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="UndoAvatarChange">Cofnij zmianę</button>
+                        }
+                        else if (profile.AvatarUrl is not null)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="StageAvatarRemoval">Usuń zdjęcie</button>
+                        }
+                    </div>
+                    @if (HasAvatarChange)
+                    {
+                        <p class="avatar-edit__pending" role="status">
+                            @(removeAvatar ? "Zdjęcie zostanie usunięte po kliknięciu „Zapisz zmiany”." : "Nowe zdjęcie zapisze się po kliknięciu „Zapisz zmiany”.")
+                        </p>
+                    }
+                </div>
+
+                @if (cropping)
+                {
+                    <div class="avatar-crop">
+                        <div class="avatar-crop__viewport" @ref="cropViewport" tabindex="0" role="group"
+                             aria-label="Kadr zdjęcia profilowego: przeciągnij zdjęcie albo użyj strzałek"></div>
+                        <input @ref="cropZoom" type="range" class="avatar-crop__zoom" min="1" max="3" step="0.01" value="1"
+                               aria-label="Powiększenie zdjęcia" />
+                        <p class="avatar-crop__hint">Przeciągnij zdjęcie, żeby ustawić kadr (np. na twarz). Suwakiem lub kółkiem myszy je powiększysz.</p>
+                        <div class="avatar-crop__actions">
+                            <button type="button" class="btn btn-sm btn-primary" @onclick="ApplyCropAsync" disabled="@(!cropReady || cropBusy)">
+                                @(cropBusy ? "Przycinanie..." : "Zastosuj kadr")
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="CancelCropAsync" disabled="@cropBusy">Anuluj</button>
+                        </div>
+                    </div>
+                }
+            </div>
+
             <label class="form-label">Imię</label>
             <input @bind="firstName" class="form-control mb-3" placeholder="Imię" />
 
@@ -35,7 +85,7 @@
             <input value="@profile.Role.Label()" class="form-control mb-1" disabled />
             <div class="form-text mb-4">Rolę może zmienić tylko master.</div>
 
-            <button type="submit" class="btn btn-primary w-100" disabled="@saving">
+            <button type="submit" class="btn btn-primary w-100" disabled="@(saving || cropping)">
                 @(saving ? "Zapisywanie..." : "Zapisz zmiany")
             </button>
         </form>
@@ -52,6 +102,27 @@
     private string lastName = "";
     private bool loading = true;
     private bool saving;
+
+    // zdjęcie profilowe: nowe zdjęcie albo usunięcie czekają na „Zapisz zmiany”
+    private const long MaxAvatarPickBytes = 10 * 1024 * 1024;
+    private const int AvatarSize = 512;
+    private byte[]? avatarBytes;
+    private string? avatarPreview;
+    private bool removeAvatar;
+    private int avatarInputKey;
+
+    // kadrowanie: zdjęcie czyta przeglądarka (avatarCropper w app.js), więc w komponencie trzymamy tylko elementy i stan
+    private InputFile? pickInput;
+    private ElementReference cropViewport;
+    private ElementReference cropZoom;
+    private bool cropping;
+    private bool cropReady;
+    private bool cropNeedsInit;
+    private bool cropBusy;
+
+    private string FullName => $"{firstName} {lastName}".Trim();
+    private bool HasAvatarChange => avatarBytes is not null || removeAvatar;
+    private string? CurrentAvatarUrl => removeAvatar ? null : avatarPreview ?? profile?.AvatarUrl;
 
     protected override async Task OnInitializedAsync()
     {
@@ -74,7 +145,7 @@
 
     private async Task SaveAsync()
     {
-        if (profile is null) return;
+        if (profile is null || cropping) return;
 
         saving = true;
         try
@@ -82,6 +153,14 @@
             await AuthService.UpdateUserAsync(profile.Id, firstName, lastName, profile.Email, profile.Role);
             profile.FirstName = firstName.Trim();
             profile.LastName = lastName.Trim();
+
+            if (HasAvatarChange)
+            {
+                await AuthService.SetMyAvatarAsync(avatarBytes);
+                profile = await AuthService.GetMyProfileAsync() ?? profile;
+                ClearAvatarChange();
+            }
+
             Notify.Show("Zapisano zmiany.");
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
@@ -92,5 +171,154 @@
         {
             saving = false;
         }
+    }
+
+    private void ChooseAvatar(InputFileChangeEventArgs e)
+    {
+        var picked = e.File;
+
+        if (!picked.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            Notify.Show("Wybierz zdjęcie w formacie JPG, PNG, GIF lub WebP.", NotificationType.Error);
+            avatarInputKey++;
+            return;
+        }
+
+        if (picked.Size > MaxAvatarPickBytes)
+        {
+            Notify.Show("Zdjęcie jest za duże (maksymalnie 10 MB).", NotificationType.Error);
+            avatarInputKey++;
+            return;
+        }
+
+        // plik czyta od razu przeglądarka (kadrowanie), na serwer trafia dopiero gotowy kadr po „Zastosuj”;
+        // pola wyboru nie czyścimy w trakcie kadrowania, bo przeglądarka straciłaby plik
+        cropping = true;
+        cropReady = false;
+        cropNeedsInit = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!cropNeedsInit) return;
+        cropNeedsInit = false;
+
+        var ready = false;
+        try
+        {
+            if (pickInput?.Element is { } inputElement)
+            {
+                ready = await JS.InvokeAsync<bool>("avatarCropper.init", cropViewport, cropZoom, inputElement);
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            Logger.LogWarning(ex, "Nie udało się uruchomić kadrowania zdjęcia profilowego.");
+        }
+
+        if (ready)
+        {
+            cropReady = true;
+        }
+        else
+        {
+            Notify.Show("Nie udało się wczytać zdjęcia. Wybierz plik JPG, PNG, GIF lub WebP.", NotificationType.Error);
+            await CloseCropperAsync();
+        }
+        StateHasChanged();
+    }
+
+    private async Task ApplyCropAsync()
+    {
+        if (!cropReady || cropBusy) return;
+        cropBusy = true;
+
+        try
+        {
+            var chunks = await JS.InvokeAsync<int>("avatarCropper.apply", cropViewport, AvatarSize);
+            if (chunks <= 0)
+            {
+                throw new InvalidOperationException("Nie udało się przyciąć zdjęcia.");
+            }
+
+            var parts = new List<string>(chunks);
+            for (var i = 0; i < chunks; i++)
+            {
+                parts.Add(await JS.InvokeAsync<string>("avatarCropper.chunk", cropViewport, i));
+            }
+            var bytes = Convert.FromBase64String(string.Concat(parts));
+
+            // serwer sprawdza zawartość i rozmiar jeszcze raz przy zapisie
+            if (bytes.Length > IFileService.MaxAvatarBytes || !FileService.IsSupportedImage(bytes))
+            {
+                throw new InvalidOperationException("Przycięte zdjęcie jest nieprawidłowe.");
+            }
+
+            avatarBytes = bytes;
+            avatarPreview = $"data:image/jpeg;base64,{Convert.ToBase64String(bytes)}";
+            removeAvatar = false;
+            await CloseCropperAsync();
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or FormatException)
+        {
+            Logger.LogWarning(ex, "Nie udało się przyciąć zdjęcia profilowego.");
+            Notify.Show("Nie udało się przyciąć zdjęcia. Spróbuj ponownie.", NotificationType.Error);
+        }
+        finally
+        {
+            cropBusy = false;
+        }
+    }
+
+    private async Task CancelCropAsync()
+    {
+        if (cropBusy) return;
+        await CloseCropperAsync();
+    }
+
+    private async Task CloseCropperAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("avatarCropper.dispose", cropViewport);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            Logger.LogDebug(ex, "Nie udało się zamknąć kadrowania zdjęcia profilowego.");
+        }
+
+        cropping = false;
+        cropReady = false;
+        avatarInputKey++; // czyści pole wyboru dopiero teraz, gdy plik nie jest już potrzebny
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!cropping) return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("avatarCropper.dispose", cropViewport);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            Logger.LogDebug(ex, "Nie udało się zwolnić kadrowania zdjęcia profilowego.");
+        }
+    }
+
+    private void StageAvatarRemoval()
+    {
+        avatarBytes = null;
+        avatarPreview = null;
+        removeAvatar = true;
+    }
+
+    private void UndoAvatarChange() => ClearAvatarChange();
+
+    private void ClearAvatarChange()
+    {
+        avatarBytes = null;
+        avatarPreview = null;
+        removeAvatar = false;
     }
 }
