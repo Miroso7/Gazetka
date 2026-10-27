@@ -53,6 +53,15 @@
     </div>
 </div>
 
+@if (searching)
+{
+    <div class="search-chip" role="status">
+        <svg class="search-chip__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+        <span class="search-chip__text">Szukana fraza: <strong>@searchTerm</strong></span>
+        <a class="search-chip__clear" href="/zastepstwa">Wyczyść</a>
+    </div>
+}
+
 @if (loading)
 {
     <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
@@ -63,7 +72,7 @@ else
     if (shown.Count == 0)
     {
         <div class="empty-state">
-            @(items.Count == 0 ? "Na ten dzień nie ma zastępstw." : "Brak zastępstw pasujących do filtrów.")
+            @(items.Count == 0 ? "Na ten dzień nie ma zastępstw." : searching ? $"Brak zastępstw pasujących do „{searchTerm}”." : "Brak zastępstw pasujących do filtrów.")
         </div>
     }
     else
@@ -81,6 +90,20 @@ else
     private bool loading = true;
     private string classFilter = "";
     private string teacherFilter = "";
+
+    // fraza z wyszukiwarki w nagłówku (/zastepstwa?q=kowalski); szukamy w zastępstwach wybranego dnia
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? SearchQuery { get; set; }
+
+    private string searchTerm = "";
+    private string[] searchWords = Array.Empty<string>();
+    private bool searching => searchTerm.Length > 0;
+
+    protected override void OnParametersSet()
+    {
+        searchTerm = SearchText.Clean(SearchQuery);
+        searchWords = SearchText.Words(searchTerm);
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -151,9 +174,17 @@ else
             {
                 q = q.Where(s => s.AbsentTeacherId.ToString() == teacherFilter || s.SubstituteTeacherId.ToString() == teacherFilter);
             }
+            if (searching)
+            {
+                q = q.Where(s => SearchText.MatchesAll(searchWords, Haystack(s)));
+            }
             return q;
         }
     }
+
+    // pola przeszukiwane wyszukiwarką: lekcja, klasa, przedmiot, nauczyciele, sala, uwagi i odwołanie
+    private static string Haystack(Substitution s) =>
+        $"{s.Lesson} {s.Class?.Name} {s.Subject?.Name} {s.AbsentTeacher?.Name} {s.SubstituteTeacher?.Name} {s.Room?.Name} {s.Note} {(s.IsCancelled ? "odwołana" : "")}";
 
     private string DayLabel
     {
