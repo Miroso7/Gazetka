@@ -6274,3 +6274,109 @@ body {
 .article-card--admin .article-card__ask {
     white-space: normal;
 }
+
+
+/* ---------- Strona główna: wybór liczby artykułów i numeracja stron ---------- */
+.pager-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem 1rem;
+    margin-top: 1rem;
+}
+
+.pager-bar__info {
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.pager-size {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .35rem;
+}
+
+.pager-size__label {
+    margin-right: .2rem;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.pager-size__item,
+.pager__item {
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.4rem;
+    height: 2.4rem;
+    padding: 0 .85rem;
+    font-size: .88rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--navy);
+    text-decoration: none;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    transition: color .2s var(--ease), background .2s var(--ease), border-color .2s var(--ease), box-shadow .2s var(--ease);
+}
+
+    .pager-size__item:hover,
+    .pager__item:hover {
+        color: var(--blue-dark);
+        background: var(--blue-soft);
+        border-color: rgba(23, 105, 224, .4);
+    }
+
+    .pager-size__item:focus-visible,
+    .pager__item:focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 2px;
+    }
+
+    .pager-size__item.is-active,
+    .pager-size__item.is-active:hover,
+    .pager__item.is-active,
+    .pager__item.is-active:hover {
+        color: var(--white);
+        background: var(--blue);
+        border-color: var(--blue);
+        box-shadow: 0 4px 12px rgba(23, 105, 224, .3);
+    }
+
+.pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    padding: 0 0 3rem;
+}
+
+.pager__item.is-disabled {
+    color: var(--muted);
+    opacity: .5;
+    pointer-events: none;
+}
+
+.pager__gap {
+    padding: 0 .2rem;
+    color: var(--muted);
+}
+
+@media (max-width: 575.98px) {
+    .pager-bar {
+        justify-content: center;
+    }
+
+    .pager__item--nav {
+        flex: 1 1 100%;
+    }
+
+    .pager {
+        gap: .3rem;
+    }
+}

@@ -87,10 +87,62 @@
         </div>
     }
 
-    <ArticleCard Articles="articles"
+    @if (articles.Count > PageSizes[0])
+    {
+        <div class="pager-bar">
+            <span class="pager-bar__info">@RangeSummary()</span>
+            <div class="pager-size" role="group" aria-label="Liczba artykułów na stronie">
+                <span class="pager-size__label">Na stronie:</span>
+                @foreach (var size in PageSizes)
+                {
+                    <a class="pager-size__item @(size == pageSize ? "is-active" : "")" href="@BuildHref(selectedType, searching, 1, size)"
+                       aria-current="@(size == pageSize ? "true" : null)">@size</a>
+                }
+            </div>
+        </div>
+    }
+
+    <ArticleCard Articles="pageArticles"
                  permissions="false"
+                 FirstPage="@(page == 1)"
                  ShowType="@(selectedType is null)"
                  EmptyText="@EmptyMessage" />
+
+    @if (totalPages > 1)
+    {
+        <nav class="pager" aria-label="Strony artykułów">
+            @if (page > 1)
+            {
+                <a class="pager__item pager__item--nav" href="@BuildHref(selectedType, searching, page - 1)" rel="prev">← Poprzednia</a>
+            }
+            else
+            {
+                <span class="pager__item pager__item--nav is-disabled" aria-disabled="true">← Poprzednia</span>
+            }
+
+            @foreach (var p in PageNumbers())
+            {
+                if (p == 0)
+                {
+                    <span class="pager__gap" aria-hidden="true">…</span>
+                }
+                else
+                {
+                    <a class="pager__item @(p == page ? "is-active" : "")" href="@BuildHref(selectedType, searching, p)"
+                       aria-label="Strona @p" aria-current="@(p == page ? "page" : null)">@p</a>
+                }
+            }
+
+            @if (page < totalPages)
+            {
+                <a class="pager__item pager__item--nav" href="@BuildHref(selectedType, searching, page + 1)" rel="next">Następna →</a>
+            }
+            else
+            {
+                <span class="pager__item pager__item--nav is-disabled" aria-disabled="true">Następna →</span>
+            }
+        </nav>
+    }
 </section>
 
 
@@ -104,7 +156,25 @@
     [SupplyParameterFromQuery(Name = "q")]
     public string? SearchQuery { get; set; }
 
+    // numer strony i liczba artykułów na stronie, np. /?strona=2&na=20 (brak = pierwsza strona, 10 artykułów)
+    [SupplyParameterFromQuery(Name = "strona")]
+    public int? PageQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "na")]
+    public int? PageSizeQuery { get; set; }
+
+    // wszystkie artykuły pasujące do kategorii i frazy
     public List<Article> articles = new List<Article>();
+
+    // artykuły widoczne na bieżącej stronie
+    private List<Article> pageArticles = new();
+
+    private static readonly int[] PageSizes = { 5, 10, 20 };
+    private const int DefaultPageSize = 10;
+
+    private int pageSize = DefaultPageSize;
+    private int page = 1;
+    private int totalPages = 1;
 
     private ArticleType? selectedType;
     private string searchTerm = "";
@@ -128,6 +198,11 @@
         searchTerm = SearchText.Clean(SearchQuery);
 
         articles = searching ? Filter(source, searchTerm) : source;
+
+        pageSize = PageSizeQuery is { } size && PageSizes.Contains(size) ? size : DefaultPageSize;
+        totalPages = Math.Max(1, (int)Math.Ceiling(articles.Count / (double)pageSize));
+        page = Math.Clamp(PageQuery ?? 1, 1, totalPages);
+        pageArticles = articles.Skip((page - 1) * pageSize).Take(pageSize).ToList();
     }
 
     // wszystkie słowa z frazy muszą wystąpić w tytule, treści lub autorze (bez rozróżniania wielkości liter i polskich znaków)
@@ -141,11 +216,15 @@
     }
 
     // adres zakładki; withSearch zachowuje frazę, żeby dało się zawęzić wyniki do kategorii
-    private string BuildHref(ArticleType? type, bool withSearch)
+    // zmiana zakładki lub frazy wraca na pierwszą stronę, ale zachowuje wybraną liczbę artykułów na stronie
+    private string BuildHref(ArticleType? type, bool withSearch, int targetPage = 1, int? size = null)
     {
         var parts = new List<string>();
         if (type is { } t) parts.Add($"typ={t}");
         if (withSearch && searching) parts.Add($"q={Uri.EscapeDataString(searchTerm)}");
+        var targetSize = size ?? pageSize;
+        if (targetSize != DefaultPageSize) parts.Add($"na={targetSize}");
+        if (targetPage > 1) parts.Add($"strona={targetPage}");
 
         return "/" + (parts.Count > 0 ? "?" + string.Join("&", parts) : "") + "#aktualnosci";
     }
@@ -157,6 +236,27 @@
         var word = n == 1 ? "wynik" : few ? "wyniki" : "wyników";
         var scope = selectedType is { } t ? $" w kategorii {t.Label()}" : "";
         return $"{n} {word}{scope}";
+    }
+
+    // numery stron do pokazania (0 = przerwa „…”): pierwsza, ostatnia i najbliższe bieżącej
+    private IEnumerable<int> PageNumbers()
+    {
+        var last = 0;
+        for (var p = 1; p <= totalPages; p++)
+        {
+            if (p != 1 && p != totalPages && Math.Abs(p - page) > 1) continue;
+
+            if (last != 0 && p - last > 1) yield return 0;
+            yield return p;
+            last = p;
+        }
+    }
+
+    private string RangeSummary()
+    {
+        var from = (page - 1) * pageSize + 1;
+        var to = Math.Min(page * pageSize, articles.Count);
+        return $"Artykuły {from}–{to} z {articles.Count}";
     }
 
     private string EmptyMessage => searching

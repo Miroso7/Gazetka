@@ -14,8 +14,8 @@
     {
         var article = Articles[i];
         var imageUrl = GetImageUrl(article.FileId);
-        var featured = !permissions && Articles.Count > 2 && i == 0;
-        var isNewest = !permissions && Articles.Count > 1 && article.Id == newestId;
+        var featured = !permissions && FirstPage && Articles.Count > 2 && i == 0;
+        var isNewest = !permissions && FirstPage && Articles.Count > 1 && article.Id == newestId;
 
         <article @key="article.Id"
                  class="article-card article-card--@article.Type.CssName() @(featured ? "article-card--featured" : "") @(permissions ? "article-card--admin" : "")"
@@ -117,6 +117,9 @@
     public List<Article> Articles { get; set; } = new();
     [Parameter]
     public bool permissions { get; set; }
+    // kolejne strony listy nie mają wyróżnionego artykułu ani odznaki „Nowe”
+    [Parameter]
+    public bool FirstPage { get; set; } = true;
     // etykieta typu artykułu nad tytułem (na stronach pojedynczych zakładek jest zbędna)
     [Parameter]
     public bool ShowType { get; set; } = true;
