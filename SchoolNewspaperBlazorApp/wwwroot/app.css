@@ -5454,3 +5454,279 @@ body {
     font-size: 1.05rem;
     border-radius: 999px;
 }
+
+/* ---------- Panel redakcji: responsywność ---------- */
+
+/* laptop: węższy pasek boczny zostawia więcej miejsca na treść */
+@media (min-width: 992px) and (max-width: 1199.98px) {
+    .admin {
+        grid-template-columns: 14.5rem minmax(0, 1fr);
+        gap: 1.25rem;
+    }
+}
+
+/* niski ekran: menu boczne przewija się samo, zamiast wychodzić poza okno */
+@media (min-width: 992px) {
+    .admin-side {
+        max-height: calc(100vh - 6.75rem);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+    }
+}
+
+/* tablet i telefon: menu jako poziomy pasek, z zanikiem na prawej krawędzi jako wskazówką przewijania */
+@media (max-width: 991.98px) {
+    .admin-side__nav {
+        padding-right: 1.75rem;
+        scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch;
+        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 1.75rem), transparent);
+        mask-image: linear-gradient(90deg, #000 calc(100% - 1.75rem), transparent);
+    }
+
+    .admin-nav__item {
+        flex: none;
+        scroll-snap-align: start;
+    }
+
+    .admin-head {
+        margin-bottom: 1.1rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .panel__head,
+    .a-toolbar,
+    .a-foot {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .panel__head {
+        flex-wrap: wrap;
+        gap: .35rem 1rem;
+    }
+
+    .recent li {
+        padding: .8rem 1rem;
+    }
+
+    .perm-row {
+        padding: .9rem 1rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .admin {
+        padding-bottom: 2rem;
+    }
+
+    .admin-head__sub {
+        font-size: .92rem;
+    }
+
+    .admin-nav__item {
+        gap: .55rem;
+        padding: .6rem .85rem;
+        font-size: .9rem;
+    }
+
+    /* statystyki: trzy zwarte kafelki w jednym rzędzie */
+    .stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .6rem;
+        margin-bottom: 1.1rem;
+    }
+
+    .stat {
+        flex-direction: column;
+        gap: .5rem;
+        padding: .9rem .4rem;
+        text-align: center;
+    }
+
+    .stat__icon {
+        width: 2.4rem;
+        height: 2.4rem;
+    }
+
+    .stat__value {
+        font-size: 1.4rem;
+    }
+
+    .stat__label {
+        font-size: .76rem;
+        overflow-wrap: anywhere;
+    }
+
+    /* szybkie akcje: poziome wiersze zamiast wysokich kafelków */
+    .qa-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: .65rem;
+        margin-bottom: 1.1rem;
+    }
+
+    .qa {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        column-gap: .9rem;
+        row-gap: .1rem;
+        align-items: center;
+        padding: 1rem;
+    }
+
+    .qa__icon {
+        grid-row: 1 / span 2;
+        margin-bottom: 0;
+    }
+
+    /* ostatnio dodane: autor pod tytułem */
+    .recent li {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: .1rem;
+    }
+
+    .recent__title {
+        max-width: 100%;
+    }
+
+    .field {
+        flex: 1 1 100%;
+    }
+
+    /* 16 px w polach: iOS nie przybliża strony po kliknięciu w pole */
+    .field__input,
+    .select {
+        font-size: 1rem;
+    }
+
+    .a-row {
+        padding: .9rem 1rem;
+    }
+
+    .skel-list {
+        padding: 1rem;
+    }
+
+    .perm-alert {
+        margin: .85rem 1rem 0;
+    }
+
+    .perm-legend__list {
+        padding: .75rem 1rem;
+    }
+}
+
+@media (pointer: coarse) {
+    .admin-nav__item {
+        min-height: 2.75rem;
+    }
+}
+
+/* ---------- Logowanie i zmiana hasła: responsywność ---------- */
+
+/* mały tablet: węższe marginesy wewnątrz karty, formularz dostaje więcej miejsca */
+@media (min-width: 768px) and (max-width: 991.98px) {
+    .auth {
+        margin-left: 1rem;
+        margin-right: 1rem;
+    }
+
+    .auth__aside,
+    .auth__panel {
+        padding: 2.5rem 2rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .auth {
+        margin-bottom: 2rem;
+    }
+
+    .auth__title {
+        font-size: 1.75rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .auth {
+        margin-top: .5rem;
+        border-radius: 16px;
+    }
+
+    .auth__panel {
+        padding: 1.5rem 1.15rem 1.75rem;
+    }
+
+    .auth__back {
+        margin-bottom: 1rem;
+    }
+
+    .auth__title {
+        font-size: 1.6rem;
+    }
+
+    .auth__sub {
+        margin-bottom: 1.25rem;
+    }
+
+    .auth-form {
+        gap: 1rem;
+    }
+
+    /* 16 px w polach: iOS nie przybliża strony po kliknięciu w pole */
+    .auth-input {
+        font-size: 1rem;
+    }
+
+    .auth-toggle {
+        width: 2.75rem;
+        height: 2.75rem;
+        right: .25rem;
+    }
+
+    .auth-submit {
+        min-height: 3rem;
+    }
+}
+
+@media (max-width: 359.98px) {
+    .auth__panel {
+        padding: 1.25rem .9rem 1.5rem;
+    }
+
+    .auth-input {
+        padding-left: 2.5rem;
+    }
+
+    .auth-field__icon {
+        left: .8rem;
+    }
+}
+
+/* telefon poziomo: niski ekran, więc mniej pionowych odstępów */
+@media (max-height: 520px) and (orientation: landscape) {
+    .auth {
+        min-height: 0;
+    }
+
+    .auth__aside,
+    .auth__panel {
+        padding-top: 1.25rem;
+        padding-bottom: 1.25rem;
+    }
+
+    .auth__back {
+        margin-bottom: .6rem;
+    }
+
+    .auth__sub {
+        margin-bottom: 1rem;
+    }
+
+    .auth__list {
+        display: none;
+    }
+}

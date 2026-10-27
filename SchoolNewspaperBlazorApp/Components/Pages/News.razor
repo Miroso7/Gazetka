@@ -1,5 +1,11 @@
 ﻿@page "/nowosci"
-@using SchoolNewspaperBlazorApp.Components.Components
 @using SchoolNewspaperBlazorApp.Data.Enums
+@inject NavigationManager Navigation
 
-<ArticleSection Type="ArticleType.News" />
+@code {
+    // zakładka jest teraz częścią strony głównej; stary adres przekierowuje, żeby zakładki i linki nadal działały
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo($"/?typ={ArticleType.News}#aktualnosci", replace: true);
+    }
+}

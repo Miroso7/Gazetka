@@ -1,7 +1,10 @@
 ﻿@inherits LayoutComponentBase
 @implements IDisposable
+@using Microsoft.AspNetCore.WebUtilities
+@using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Service
 @inject NotificationService Notify
+@inject NavigationManager Navigation
 
 <a class="skip-link" href="#main" onclick="var m=document.getElementById('main'); if(m){m.focus(); m.scrollIntoView();} return false;">Przejdź do treści</a>
 
@@ -23,10 +26,15 @@
             <div class="site-nav__panel-inner">
 
                 <nav class="site-nav__links" aria-label="Główna nawigacja">
-                    <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">Strona główna</NavLink>
-                    <NavLink class="nav-link" href="/nowosci">Nowości</NavLink>
-                    <NavLink class="nav-link" href="/wydarzenia">Wydarzenia</NavLink>
-                    <NavLink class="nav-link" href="/ogloszenia">Ogłoszenia</NavLink>
+                    <a class="nav-link @(IsHomeActive ? "active" : "")" href="/"
+                       aria-current="@(IsHomeActive ? "page" : null)">Strona główna</a>
+                    @* Nowości, Wydarzenia i Ogłoszenia to zakładki strony głównej (/?typ=...), nie osobne podstrony *@
+                    @foreach (var tab in navTypes)
+                    {
+                        var isActive = ActiveType == tab;
+                        <a class="nav-link @(isActive ? "active" : "")" href="@TabHref(tab)"
+                           aria-current="@(isActive ? "page" : null)">@tab.Label()</a>
+                    }
                     <NavLink class="nav-link" href="/zastepstwa">Zastępstwa</NavLink>
                     <AuthorizeView>
                         <NavLink class="nav-link" href="/adminPanel">Admin Panel</NavLink>
@@ -91,9 +99,10 @@
             <nav class="site-footer__col" aria-label="Nawigacja w stopce">
                 <span class="site-footer__heading">Na skróty</span>
                 <a href="/">Strona główna</a>
-                <a href="/Nowosci">Nowości</a>
-                <a href="/wydarzenia">Wydarzenia</a>
-                <a href="/Ogloszenia">Ogłoszenia</a>
+                @foreach (var tab in navTypes)
+                {
+                    <a href="@TabHref(tab)">@tab.Label()</a>
+                }
                 <a href="/zastepstwa">Zastępstwa</a>
             </nav>
 
@@ -135,7 +144,38 @@
     private int counter;
     private CancellationTokenSource? cts;
 
-    protected override void OnInitialized() => Notify.OnShow += HandleShow;
+    // zakładki strony głównej linkowane z nagłówka i stopki
+    private static readonly ArticleType[] navTypes = { ArticleType.News, ArticleType.Events, ArticleType.Announcements };
+
+    private static string TabHref(ArticleType type) => $"/?typ={type}#aktualnosci";
+
+    // zakładka wybrana w adresie (/?typ=Events) – tak samo jak na stronie głównej; null = brak lub nieznana
+    private ArticleType? ActiveType
+    {
+        get
+        {
+            var uri = new Uri(Navigation.Uri);
+            if (uri.AbsolutePath != "/") return null;
+
+            var query = QueryHelpers.ParseQuery(uri.Query);
+            return query.TryGetValue("typ", out var value)
+                && Enum.TryParse<ArticleType>(value.ToString(), true, out var type)
+                && Array.IndexOf(navTypes, type) >= 0
+                    ? type
+                    : null;
+        }
+    }
+
+    // „Strona główna” świeci tylko wtedy, gdy nie jest wybrana żadna z zakładek w menu
+    private bool IsHomeActive => new Uri(Navigation.Uri).AbsolutePath == "/" && ActiveType is null;
+
+    protected override void OnInitialized()
+    {
+        Notify.OnShow += HandleShow;
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e) => _ = InvokeAsync(StateHasChanged);
 
     private void HandleShow(string text, NotificationType t)
     {
@@ -162,6 +202,7 @@
     public void Dispose()
     {
         Notify.OnShow -= HandleShow;
+        Navigation.LocationChanged -= HandleLocationChanged;
         cts?.Cancel();
         cts?.Dispose();
     }
