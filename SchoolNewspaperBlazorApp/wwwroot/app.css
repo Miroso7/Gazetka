@@ -5826,3 +5826,86 @@ body {
         transition: none;
     }
 }
+
+/* ---------- Wyszukiwarka: lista podpowiedzi ---------- */
+.search-suggest {
+    position: absolute;
+    top: calc(100% + .5rem);
+    right: 0;
+    z-index: 1050;
+    width: 22rem;
+    max-width: calc(100vw - 2rem);
+    margin: 0;
+    padding: .4rem;
+    list-style: none;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+    animation: pop-in .18s var(--ease);
+}
+
+.search-suggest__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    width: 100%;
+    padding: .6rem .75rem;
+    font-family: var(--font);
+    font-size: .92rem;
+    color: var(--navy);
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .15s var(--ease);
+}
+
+    .search-suggest__item:hover,
+    .search-suggest__item.is-active {
+        background: var(--blue-soft);
+    }
+
+.search-suggest__text {
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search-suggest__hint {
+    flex: none;
+    padding: .15rem .55rem;
+    font-size: .74rem;
+    font-weight: 700;
+    color: var(--blue-dark);
+    background: var(--blue-soft);
+    border-radius: 999px;
+}
+
+.search-suggest__item:hover .search-suggest__hint,
+.search-suggest__item.is-active .search-suggest__hint {
+    background: var(--white);
+}
+
+/* zwinięte menu (burger) ma przycięte przepełnienie (overflow: hidden), więc lista rozwija się w układzie strony, a nie nad nim */
+@media (max-width: 1199.98px) {
+    .search-suggest {
+        position: static;
+        width: auto;
+        max-width: none;
+        margin-top: .5rem;
+        box-shadow: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .search-suggest,
+    .search-suggest__item {
+        animation: none;
+        transition: none;
+    }
+}

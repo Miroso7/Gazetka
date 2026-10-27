@@ -1,0 +1,273 @@
+﻿@implements IDisposable
+@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.Extensions.Logging
+@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject NavigationManager Navigation
+@inject IArticleService ArticleService
+@inject ISubstitutionService SubstitutionService
+@inject ILogger<HeaderSearch> Logger
+
+@* Wyszukiwarka z nagłówka: na /zastepstwa szuka w zastępstwach, gdzie indziej w artykułach na stronie głównej (/?q=fraza).
+   Podczas pisania podpowiada tytuły artykułów (albo klasy, nauczycieli, przedmioty i sale na /zastepstwa).
+   Bez działającego obwodu Blazora formularz wysyła zwykłe żądanie GET. *@
+<form class="site-nav__search" role="search" method="get" action="@SearchAction" @onsubmit="Submit">
+    <input class="site-nav__search-input"
+           name="q"
+           type="search"
+           role="combobox"
+           aria-autocomplete="list"
+           aria-haspopup="listbox"
+           aria-expanded="@(open ? "true" : "false")"
+           aria-controls="search-suggestions"
+           aria-activedescendant="@(activeIndex >= 0 ? $"search-suggestion-{activeIndex}" : null)"
+           aria-label="@Placeholder"
+           placeholder="@Placeholder"
+           maxlength="@SearchText.MaxLength"
+           autocomplete="off"
+           enterkeyhint="search"
+           @bind="text"
+           @bind:event="oninput"
+           @bind:after="OnInputAsync"
+           @onfocus="OnFocusAsync"
+           @onblur="Close"
+           @onkeydown="OnKeyDown" />
+    <button class="site-nav__search-btn" type="submit" aria-label="Szukaj">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" />
+        </svg>
+    </button>
+
+    @if (open)
+    {
+        <ul class="search-suggest" id="search-suggestions" role="listbox" aria-label="Podpowiedzi wyszukiwania">
+            @for (var i = 0; i < suggestions.Count; i++)
+            {
+                var item = suggestions[i];
+                var position = i;
+                @* mousedown zamiast click, żeby wybór zadziałał przed utratą fokusu przez pole (onblur zamyka listę) *@
+                <li role="presentation">
+                    <button type="button"
+                            id="search-suggestion-@position"
+                            role="option"
+                            class="search-suggest__item @(position == activeIndex ? "is-active" : "")"
+                            aria-selected="@(position == activeIndex ? "true" : "false")"
+                            @onmousedown="() => Choose(item)"
+                            @onmousedown:preventDefault>
+                        <span class="search-suggest__text">@item.Text</span>
+                        <span class="search-suggest__hint">@item.Hint</span>
+                    </button>
+                </li>
+            }
+        </ul>
+    }
+</form>
+
+@code {
+    private sealed record Suggestion(string Text, string Hint, string? Href, string Folded);
+
+    private const int MinLength = 2;
+    private const int MaxSuggestions = 6;
+    private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(2);
+
+    private string text = "";
+    private bool open;
+    private int activeIndex = -1;
+    private List<Suggestion> suggestions = new();
+
+    // podpowiedzi pochodzą z zapamiętanych list, odświeżanych co kilka minut (bez zapytania do bazy przy każdej literze)
+    private List<Suggestion> articleEntries = new();
+    private List<Suggestion> substitutionEntries = new();
+    private Task? loadTask;
+    private DateTime loadedAt;
+
+    private bool OnSubstitutions =>
+        string.Equals(new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/'), "/zastepstwa", StringComparison.OrdinalIgnoreCase);
+
+    private string SearchAction => OnSubstitutions ? "/zastepstwa" : "/#aktualnosci";
+
+    private string Placeholder => OnSubstitutions ? "Szukaj zastępstw..." : "Szukaj...";
+
+    // fraza z adresu (/?q=... lub /zastepstwa?q=...) wraca do pola wyszukiwania
+    private string SearchQuery
+    {
+        get
+        {
+            var uri = new Uri(Navigation.Uri);
+            if (uri.AbsolutePath != "/" && !OnSubstitutions) return "";
+
+            return QueryHelpers.ParseQuery(uri.Query).TryGetValue("q", out var value)
+                ? value.ToString().Trim()
+                : "";
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += HandleLocationChanged;
+        text = SearchQuery;
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        text = SearchQuery;
+        Close();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnFocusAsync()
+    {
+        // wczytanie danych przy wejściu w pole, żeby pierwsze podpowiedzi pojawiły się od razu
+        await EnsureIndexAsync();
+        if (SearchText.Clean(text).Length >= MinLength) UpdateSuggestions();
+    }
+
+    private async Task OnInputAsync()
+    {
+        if (SearchText.Clean(text).Length < MinLength)
+        {
+            suggestions = new();
+            Close();
+            return;
+        }
+
+        await EnsureIndexAsync();
+        UpdateSuggestions();
+    }
+
+    private async Task EnsureIndexAsync()
+    {
+        if (loadTask is null || (loadTask.IsCompleted && DateTime.UtcNow - loadedAt > CacheLifetime))
+        {
+            loadTask = LoadIndexAsync();
+        }
+        await loadTask;
+    }
+
+    private async Task LoadIndexAsync()
+    {
+        try
+        {
+            var articles = await ArticleService.GetAllArticlesAsync();
+            articleEntries = articles
+                .Select(a => new Suggestion(a.Title, a.Type.Label(), $"/article/{a.Id}", SearchText.Fold(a.Title)))
+                .ToList();
+
+            var substitutions = await SubstitutionService.GetSubstitutionsAsync(null);
+            substitutionEntries = BuildSubstitutionEntries(substitutions);
+        }
+        catch (Exception ex)
+        {
+            // wyszukiwanie działa dalej, tylko bez podpowiedzi
+            Logger.LogWarning(ex, "Nie udało się wczytać danych do podpowiedzi wyszukiwarki.");
+        }
+        finally
+        {
+            loadedAt = DateTime.UtcNow;
+        }
+    }
+
+    // klasy, nauczyciele, przedmioty i sale, które występują w zastępstwach; bez powtórzeń
+    private static List<Suggestion> BuildSubstitutionEntries(List<Substitution> substitutions) =>
+        substitutions
+            .SelectMany(s => new (string? Name, string Hint)[]
+            {
+                (s.Class?.Name, "Klasa"),
+                (s.AbsentTeacher?.Name, "Nauczyciel"),
+                (s.SubstituteTeacher?.Name, "Nauczyciel"),
+                (s.Subject?.Name, "Przedmiot"),
+                (s.Room?.Name, "Sala")
+            })
+            .Where(n => !string.IsNullOrWhiteSpace(n.Name))
+            .Select(n => (Name: n.Name!.Trim(), n.Hint))
+            .DistinctBy(n => (n.Name.ToLowerInvariant(), n.Hint))
+            .OrderBy(n => n.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(n => new Suggestion(n.Name, n.Hint, null, SearchText.Fold(n.Name)))
+            .ToList();
+
+    private void UpdateSuggestions()
+    {
+        var words = SearchText.Words(SearchText.Clean(text));
+        var source = OnSubstitutions ? substitutionEntries : articleEntries;
+
+        suggestions = words.Length == 0
+            ? new()
+            : source
+                .Where(e => words.All(word => e.Folded.Contains(word)))
+                // najpierw te, które zaczynają się od wpisanego słowa (OrderBy zachowuje dotychczasową kolejność)
+                .OrderBy(e => e.Folded.StartsWith(words[0]) ? 0 : 1)
+                .Take(MaxSuggestions)
+                .ToList();
+
+        activeIndex = -1;
+        open = suggestions.Count > 0;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (suggestions.Count == 0) return;
+
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                open = true;
+                activeIndex = (activeIndex + 1) % suggestions.Count;
+                break;
+            case "ArrowUp":
+                open = true;
+                activeIndex = activeIndex <= 0 ? suggestions.Count - 1 : activeIndex - 1;
+                break;
+            case "Escape":
+                Close();
+                break;
+        }
+    }
+
+    private void Close()
+    {
+        open = false;
+        activeIndex = -1;
+    }
+
+    // Enter z podświetloną podpowiedzią wybiera ją, w przeciwnym razie szuka wpisanej frazy
+    private void Submit()
+    {
+        if (open && activeIndex >= 0 && activeIndex < suggestions.Count)
+        {
+            Choose(suggestions[activeIndex]);
+            return;
+        }
+
+        Search(text);
+    }
+
+    // artykuł otwiera się od razu; nazwa (klasa, nauczyciel…) uruchamia wyszukiwanie
+    private void Choose(Suggestion item)
+    {
+        Close();
+
+        if (item.Href is not null)
+        {
+            Navigation.NavigateTo(item.Href);
+            return;
+        }
+
+        text = item.Text;
+        Search(item.Text);
+    }
+
+    private void Search(string term)
+    {
+        Close();
+
+        var clean = SearchText.Clean(term);
+        var query = clean.Length > 0 ? $"?q={Uri.EscapeDataString(clean)}" : "";
+
+        Navigation.NavigateTo(OnSubstitutions ? $"/zastepstwa{query}" : $"/{query}#aktualnosci");
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= HandleLocationChanged;
+}
