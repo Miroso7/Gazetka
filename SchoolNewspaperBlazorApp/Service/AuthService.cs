@@ -15,6 +15,8 @@ namespace SchoolNewspaperBlazorApp.Service
         private const int SaltSize = 16;      // 128 bitów
         private const int KeySize = 32;       // 256 bitów
         private const int Iterations = 600_000;
+        // hash do „pustej” weryfikacji przy nieznanym adresie e-mail (liczony raz, przy pierwszym użyciu)
+        private static readonly Lazy<string> DummyHash = new(() => HashPassword(Guid.NewGuid().ToString("N")));
 
         private readonly IAuthRepository _authRepository;
         private readonly IPermissionService _permissionService;
@@ -276,6 +278,8 @@ namespace SchoolNewspaperBlazorApp.Service
             var user = await _authRepository.GetUserByEmailAsync(email.Trim());
             if (user is null)
             {
+                // taka sama kosztowna weryfikacja jak dla istniejącego konta, żeby czas odpowiedzi nie zdradzał, czy adres istnieje
+                VerifyHash(DummyHash.Value, password);
                 _logger.LogDebug("Logowanie odrzucone: nie ma użytkownika o podanym adresie e-mail.");
                 return LoginResult.Failed;
             }

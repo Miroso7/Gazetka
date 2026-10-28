@@ -62,6 +62,11 @@ namespace SchoolNewspaperBlazorApp.Service
         }
         public async Task<List<Article>> GetAllArticlesAsync()
         {
+            // lista obejmuje wersje robocze i zaplanowane artykuły, więc tylko dla redakcji (reszta dostaje pustą listę)
+            if (!await CanSeeUnpublishedAsync())
+            {
+                return new List<Article>();
+            }
             return await _articleRepository.GetAllArticlesAsync();
         }
         public async Task<List<Article>> GetArticlesByTypeAsync(ArticleType type)

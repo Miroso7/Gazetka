@@ -228,6 +228,9 @@
         StateHasChanged();
     }
 
+    // rozmiar fragmentu zdjęcia przesyłanego z przeglądarki (taki sam jak CHUNK w app.js)
+    private const int AvatarChunkSize = 16000;
+
     private async Task ApplyCropAsync()
     {
         if (!cropReady || cropBusy) return;
@@ -236,7 +239,9 @@
         try
         {
             var chunks = await JS.InvokeAsync<int>("avatarCropper.apply", cropViewport, AvatarSize);
-            if (chunks <= 0)
+            // liczba i rozmiar fragmentów pochodzą z przeglądarki, więc serwer sam ogranicza je do rozmiaru dozwolonego zdjęcia (base64 to ok. 4/3 bajtów)
+            var maxChunks = (int)Math.Ceiling(IFileService.MaxAvatarBytes * 4.0 / 3 / AvatarChunkSize) + 1;
+            if (chunks <= 0 || chunks > maxChunks)
             {
                 throw new InvalidOperationException("Nie udało się przyciąć zdjęcia.");
             }
@@ -244,7 +249,12 @@
             var parts = new List<string>(chunks);
             for (var i = 0; i < chunks; i++)
             {
-                parts.Add(await JS.InvokeAsync<string>("avatarCropper.chunk", cropViewport, i));
+                var part = await JS.InvokeAsync<string>("avatarCropper.chunk", cropViewport, i);
+                if (part is null || part.Length > AvatarChunkSize)
+                {
+                    throw new InvalidOperationException("Nie udało się przyciąć zdjęcia.");
+                }
+                parts.Add(part);
             }
             var bytes = Convert.FromBase64String(string.Concat(parts));
 
