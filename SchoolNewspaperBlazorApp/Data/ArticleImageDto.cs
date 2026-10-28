@@ -10,6 +10,7 @@ namespace SchoolNewspaperBlazorApp.Data
         public string FileName { get; set; } = "";
         public InlinePlacement Placement { get; set; }
         public int InlineAfter { get; set; }
+        public int SortOrder { get; set; }
         public string Url => $"/Images/{Uri.EscapeDataString(FileName)}";
     }
 }

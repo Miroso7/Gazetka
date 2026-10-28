@@ -44,7 +44,7 @@ namespace SchoolNewspaperBlazorApp.Repository
             var now = DateTime.Now;
             var query = context.Articles
                 .AsNoTracking()
-                .Where(a => a.PublishDate <= now && (a.ExpiresAt == null || a.ExpiresAt > now));
+                .Where(a => !a.IsDraft && a.PublishDate <= now && (a.ExpiresAt == null || a.ExpiresAt > now));
 
             if (type is { } t)
             {
@@ -65,7 +65,7 @@ namespace SchoolNewspaperBlazorApp.Repository
 
             return await context.Articles
                 .AsNoTracking()
-                .Where(a => a.Type == type)
+                .Where(a => !a.IsDraft && a.Type == type)
                 .OrderByDescending(a => a.Id)
                 .ToListAsync();
         }
@@ -105,6 +105,8 @@ namespace SchoolNewspaperBlazorApp.Repository
             existing.PublishDate = article.PublishDate;
             existing.ExpiresAt = article.ExpiresAt;
             existing.IsPinned = article.IsPinned;
+            // pełny zapis formularza publikuje też wersję roboczą
+            existing.IsDraft = false;
 
             // galeria: usuwamy (soft delete) tylko zdjęcia tego artykułu
             var removedFileIds = new List<int>();
@@ -130,6 +132,7 @@ namespace SchoolNewspaperBlazorApp.Repository
                     var placement = changedPlacements[image.Id];
                     image.Placement = placement.Placement;
                     image.InlineAfter = placement.After;
+                    image.SortOrder = placement.Order;
                 }
             }
 
@@ -144,7 +147,8 @@ namespace SchoolNewspaperBlazorApp.Repository
                     ArticleId = article.Id,
                     FileId = addedList[index],
                     Placement = placement.Placement,
-                    InlineAfter = placement.After
+                    InlineAfter = placement.After,
+                    SortOrder = placement.Order
                 });
             }
 
@@ -152,6 +156,115 @@ namespace SchoolNewspaperBlazorApp.Repository
             _logger.LogDebug("Zaktualizowano artykuł {ArticleId} (dodane zdjęcia: {Added}, usunięte: {Removed}).",
                 article.Id, addedFileIds.Count, removedFileIds.Count);
             return removedFileIds;
+        }
+
+        public async Task<int> SaveDraftAsync(Article draft)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            if (draft.Id == 0)
+            {
+                draft.IsDraft = true;
+                await context.Articles.AddAsync(draft);
+                await context.SaveChangesAsync();
+                _logger.LogDebug("Utworzono wersję roboczą artykułu {ArticleId}.", draft.Id);
+                return draft.Id;
+            }
+
+            // nadpisujemy tylko wersje robocze: opublikowany artykuł nie może zmienić się przez autozapis
+            var existing = await context.Articles.FirstOrDefaultAsync(a => a.Id == draft.Id && a.IsDraft);
+            if (existing == null)
+            {
+                _logger.LogWarning("Nie można zapisać wersji roboczej {ArticleId}: nie istnieje albo jest już opublikowana.", draft.Id);
+                throw new InvalidOperationException("Ta wersja robocza nie istnieje albo została już opublikowana.");
+            }
+
+            existing.Title = draft.Title;
+            existing.Text = draft.Text;
+            existing.Author = draft.Author;
+            existing.Type = draft.Type;
+            existing.Details = draft.Details;
+            existing.PublishDate = draft.PublishDate;
+            existing.ExpiresAt = draft.ExpiresAt;
+            existing.IsPinned = draft.IsPinned;
+            await context.SaveChangesAsync();
+            return existing.Id;
+        }
+
+        public async Task<List<Article>> GetDeletedArticlesAsync()
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            return await context.Articles
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(a => a.IsDeleted)
+                .OrderByDescending(a => a.DeletedAt)
+                .ThenByDescending(a => a.Id)
+                .ToListAsync();
+        }
+
+        public async Task<bool> RestoreArticleAsync(int id)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var article = await context.Articles
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(a => a.Id == id && a.IsDeleted);
+            if (article == null)
+            {
+                _logger.LogWarning("Nie można przywrócić artykułu {ArticleId}: nie ma go w koszu.", id);
+                return false;
+            }
+
+            article.IsDeleted = false;
+            article.DeletedAt = null;
+            await context.SaveChangesAsync();
+            _logger.LogDebug("Przywrócono artykuł {ArticleId} z kosza.", id);
+            return true;
+        }
+
+        public async Task<List<int>?> PurgeArticleAsync(int id)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            // tylko artykuły z kosza: nie da się w ten sposób trwale usunąć opublikowanego artykułu
+            var mainFileId = await context.Articles
+                .IgnoreQueryFilters()
+                .Where(a => a.Id == id && a.IsDeleted)
+                .Select(a => (int?)a.FileId)
+                .FirstOrDefaultAsync();
+            if (mainFileId is null)
+            {
+                _logger.LogWarning("Nie można trwale usunąć artykułu {ArticleId}: nie ma go w koszu.", id);
+                return null;
+            }
+
+            var fileIds = await context.ArticleImages
+                .IgnoreQueryFilters()
+                .Where(i => i.ArticleId == id)
+                .Select(i => i.FileId)
+                .ToListAsync();
+            fileIds.Add(mainFileId.Value);
+
+            // ExecuteDelete omija soft delete z SaveChanges: to prawdziwy DELETE, najpierw galeria, potem artykuł (jedna transakcja)
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            await context.ArticleImages.IgnoreQueryFilters().Where(i => i.ArticleId == id).ExecuteDeleteAsync();
+            await context.Articles.IgnoreQueryFilters().Where(a => a.Id == id && a.IsDeleted).ExecuteDeleteAsync();
+            await transaction.CommitAsync();
+
+            _logger.LogDebug("Trwale usunięto artykuł {ArticleId}.", id);
+            return fileIds.Where(f => f > 0).Distinct().ToList();
+        }
+
+        public async Task IncrementViewCountAsync(int id)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var now = DateTime.Now;
+            await context.Articles
+                .Where(a => a.Id == id && !a.IsDraft && a.PublishDate <= now)
+                .ExecuteUpdateAsync(s => s.SetProperty(a => a.ViewCount, a => a.ViewCount + 1));
         }
 
         public async Task<List<ArticleImageDto>> GetArticleImagesAsync(int articleId)
@@ -162,8 +275,9 @@ namespace SchoolNewspaperBlazorApp.Repository
                 .AsNoTracking()
                 .Where(i => i.ArticleId == articleId)
                 .Join(context.Files, i => i.FileId, f => f.Id,
-                    (i, f) => new ArticleImageDto { Id = i.Id, FileId = i.FileId, FileName = f.FileName, Placement = i.Placement, InlineAfter = i.InlineAfter })
-                .OrderBy(x => x.Id)
+                    (i, f) => new ArticleImageDto { Id = i.Id, FileId = i.FileId, FileName = f.FileName, Placement = i.Placement, InlineAfter = i.InlineAfter, SortOrder = i.SortOrder })
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.Id)
                 .ToListAsync();
         }
 

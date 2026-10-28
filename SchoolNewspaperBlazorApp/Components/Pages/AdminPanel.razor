@@ -46,6 +46,16 @@ else
                         @Icon("plus") <span>Dodaj artykuł</span>
                     </button>
                 }
+                @if (Can(EnumPermissions.DeleteArticle))
+                {
+                    <button class="admin-nav__item @Active(8)" aria-current="@(view == 8 ? "page" : null)" @onclick="OpenTrashAsync">
+                        @Icon("trash") <span>Kosz</span>
+                        @if (deletedList.Count > 0)
+                        {
+                            <span class="admin-nav__badge">@deletedList.Count</span>
+                        }
+                    </button>
+                }
                 @if (CanSubstitutions)
                 {
                     <button class="admin-nav__item @Active(6)" aria-current="@(view == 6 ? "page" : null)" @onclick="() => SetView(6)">
@@ -101,7 +111,11 @@ else
                 <div class="stats">
                     <div class="stat">
                         <span class="stat__icon">@Icon("file")</span>
-                        <div><div class="stat__value">@(loading ? "–" : articleList.Count)</div><div class="stat__label">Artykułów</div></div>
+                        <div><div class="stat__value">@(loading ? "–" : articleList.Count(a => !a.IsDraft))</div><div class="stat__label">Artykułów</div></div>
+                    </div>
+                    <div class="stat">
+                        <span class="stat__icon">@Icon("eye")</span>
+                        <div><div class="stat__value">@(loading ? "–" : articleList.Sum(a => (long)a.ViewCount))</div><div class="stat__label">Wyświetleń</div></div>
                     </div>
                     <div class="stat">
                         <span class="stat__icon">@Icon("users")</span>
@@ -180,7 +194,7 @@ else
                             @foreach (var a in articleList.OrderByDescending(x => x.Id).Take(5))
                             {
                                 <li @key="a.Id">
-                                    <a href="/article/@a.Id" class="recent__title">@a.Title</a>
+                                    <a href="/article/@a.Id" class="recent__title">@TitleOf(a)</a>
                                     <span class="recent__author">@a.Author</span>
                                 </li>
                             }
@@ -212,9 +226,15 @@ else
                                 <option value="@option">@option.Label()</option>
                             }
                         </select>
+                        <select class="select" aria-label="Filtruj po statusie" @bind="statusFilter">
+                            <option value="">Wszystkie statusy</option>
+                            <option value="published">Opublikowane</option>
+                            <option value="draft">Wersje robocze</option>
+                        </select>
                         <select class="select" aria-label="Sortowanie" @bind="sort">
                             <option value="newest">Najnowsze</option>
                             <option value="oldest">Najstarsze</option>
+                            <option value="views">Najczęściej czytane</option>
                             <option value="title">Tytuł A–Z</option>
                         </select>
                     </div>
@@ -241,7 +261,7 @@ else
                                         <div class="a-row__thumb">
                                             @if (imageUrls.TryGetValue(a.FileId, out var url))
                                             {
-                                                <img src="@url" alt="@a.Title" loading="lazy" />
+                                                <img src="@url" alt="@TitleOf(a)" loading="lazy" />
                                             }
                                             else
                                             {
@@ -249,19 +269,27 @@ else
                                             }
                                         </div>
                                         <div class="a-row__main">
-                                            <h3 class="a-row__title">@a.Title</h3>
+                                            <h3 class="a-row__title">@TitleOf(a)</h3>
                                             <p class="a-row__text">@ArticleBodyMarkers.StripMarkers(a.Text)</p>
                                             <span class="a-row__author">@a.Author</span>
                                             <span class="type-chip type-chip--@a.Type.CssName()">@a.Type.Label()</span>
+                                            @if (a.IsDraft)
+                                            {
+                                                <span class="state-chip state-chip--draft" title="Wersja robocza: niewidoczna dla czytelników, dopóki jej nie opublikujesz">Wersja robocza</span>
+                                            }
                                             @if (a.IsPinned)
                                             {
                                                 <span class="state-chip state-chip--pinned" title="Artykuł jest przypięty na górze listy">Przypięty</span>
                                             }
-                                            @if (a.PublishDate > DateTime.Now)
+                                            @if (!a.IsDraft)
+                                            {
+                                                <span class="state-chip state-chip--views" title="Liczba wyświetleń artykułu">@Icon("eye") @a.ViewCount</span>
+                                            }
+                                            @if (!a.IsDraft && a.PublishDate > DateTime.Now)
                                             {
                                                 <span class="state-chip state-chip--from" title="Zaplanowana publikacja: do tego czasu artykuł widzi tylko redakcja">Od @StateDate(a.PublishDate)</span>
                                             }
-                                            @if (a.ExpiresAt is { } expires)
+                                            @if (!a.IsDraft && a.ExpiresAt is { } expires)
                                             {
                                                 if (expires <= DateTime.Now)
                                                 {
@@ -275,11 +303,11 @@ else
                                         </div>
                                         <div class="a-row__actions">
                                             <a class="icon-btn" href="/article/@a.Id" target="_blank" rel="noopener"
-                                               title="Podgląd" aria-label="Podgląd artykułu @a.Title">@Icon("external")</a>
-                                            @if (Can(EnumPermissions.EditArticle))
+                                               title="Podgląd" aria-label="Podgląd artykułu @TitleOf(a)">@Icon("external")</a>
+                                            @if (CanEditArticle(a))
                                             {
-                                                <button class="icon-btn" title="Edytuj"
-                                                        aria-label="Edytuj artykuł @a.Title"
+                                                <button class="icon-btn" title="@(a.IsDraft ? "Edytuj wersję roboczą" : "Edytuj")"
+                                                        aria-label="Edytuj artykuł @TitleOf(a)"
                                                         @onclick="() => StartEdit(a)">
                                                     @Icon("edit")
                                                 </button>
@@ -287,7 +315,7 @@ else
                                             @if (Can(EnumPermissions.DeleteArticle))
                                             {
                                                 <button class="icon-btn icon-btn--danger" title="Usuń"
-                                                        aria-label="Usuń artykuł @a.Title"
+                                                        aria-label="Usuń artykuł @TitleOf(a)"
                                                         @onclick="() => pendingDelete = a">
                                                     @Icon("trash")
                                                 </button>
@@ -305,6 +333,66 @@ else
             {
                 <ArticleForm @key="(editingArticle?.Id ?? 0)" ArticleToEdit="editingArticle"
                              OnAdded="ArticleAddedAsync" OnEdited="FinishEditAsync" OnCancelled="CancelEdit" />
+            }
+            else if (view == 8 && Can(EnumPermissions.DeleteArticle))
+            {
+                <div class="panel">
+                    @if (trashLoading)
+                    {
+                        <div class="skel-list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+                    }
+                    else if (deletedList.Count == 0)
+                    {
+                        <div class="empty-state">Kosz jest pusty. Usunięte artykuły pojawią się tutaj i będzie można je przywrócić.</div>
+                    }
+                    else
+                    {
+                        <ul class="a-list">
+                            @foreach (var a in deletedList)
+                            {
+                                <li class="a-row a-row--deleted" @key="a.Id">
+                                    <div class="a-row__thumb">
+                                        @if (imageUrls.TryGetValue(a.FileId, out var url))
+                                        {
+                                            <img src="@url" alt="@TitleOf(a)" loading="lazy" />
+                                        }
+                                        else
+                                        {
+                                            @Icon("image")
+                                        }
+                                    </div>
+                                    <div class="a-row__main">
+                                        <h3 class="a-row__title">@TitleOf(a)</h3>
+                                        <p class="a-row__text">@ArticleBodyMarkers.StripMarkers(a.Text)</p>
+                                        <span class="a-row__author">@a.Author</span>
+                                        <span class="type-chip type-chip--@a.Type.CssName()">@a.Type.Label()</span>
+                                        @if (a.IsDraft)
+                                        {
+                                            <span class="state-chip state-chip--draft">Wersja robocza</span>
+                                        }
+                                        @if (a.DeletedAt is { } deletedAt)
+                                        {
+                                            <span class="state-chip state-chip--expired" title="Moment usunięcia">Usunięto @StateDate(deletedAt.ToLocalTime())</span>
+                                        }
+                                    </div>
+                                    <div class="a-row__actions">
+                                        <button class="btn btn-sm btn-primary" @onclick="() => RestoreAsync(a)"
+                                                disabled="@(restoringId != 0)"
+                                                aria-label="Przywróć artykuł @TitleOf(a)">
+                                            @(restoringId == a.Id ? "Przywracanie..." : "Przywróć")
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => pendingPurge = a"
+                                                disabled="@(restoringId != 0)"
+                                                aria-label="Usuń trwale artykuł @TitleOf(a)">
+                                            Usuń trwale
+                                        </button>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                        <div class="a-foot">W koszu: @deletedList.Count</div>
+                    }
+                </div>
             }
             else if (view == 3 && Can(EnumPermissions.AddUser))
             {
@@ -333,6 +421,24 @@ else
     </div>
 }
 
+@if (pendingPurge != null)
+{
+    <div class="confirm">
+        <div class="confirm__scrim" @onclick="CancelPurge"></div>
+        <div class="confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="purge-title">
+            <div class="confirm__icon">@Icon("trash")</div>
+            <h2 id="purge-title" class="confirm__title">Usunąć trwale?</h2>
+            <p class="confirm__text">Artykuł „@TitleOf(pendingPurge)” zostanie usunięty na stałe razem z galerią. Tego nie da się cofnąć.</p>
+            <div class="confirm__actions">
+                <button class="btn btn-outline-primary" @onclick="CancelPurge" disabled="@purging">Anuluj</button>
+                <button class="btn btn-danger-solid" @onclick="ConfirmPurgeAsync" disabled="@purging">
+                    @(purging ? "Usuwanie..." : "Usuń trwale")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @if (pendingDelete != null)
 {
     <div class="confirm">
@@ -340,7 +446,7 @@ else
         <div class="confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
             <div class="confirm__icon">@Icon("trash")</div>
             <h2 id="confirm-title" class="confirm__title">Usunąć artykuł?</h2>
-            <p class="confirm__text">Artykuł „@pendingDelete.Title” zostanie usunięty i przestanie być widoczny. Z panelu nie można tego cofnąć.</p>
+            <p class="confirm__text">Artykuł „@TitleOf(pendingDelete)” przestanie być widoczny. Trafi do kosza, skąd możesz go przywrócić.</p>
             <div class="confirm__actions">
                 <button class="btn btn-outline-primary" @onclick="CancelDelete" disabled="@deleting">Anuluj</button>
                 <button class="btn btn-danger-solid" @onclick="ConfirmDeleteAsync" disabled="@deleting">
@@ -375,6 +481,14 @@ else
     private string authorFilter = "";
     private string typeFilter = "";
     private string sort = "newest";
+    private string statusFilter = "";
+
+    // kosz: usunięte artykuły (miękkie usunięcie) do przywrócenia
+    private List<Article> deletedList = new();
+    private bool trashLoading;
+    private int restoringId;
+    private Article? pendingPurge;
+    private bool purging;
 
     private bool authorized;
 
@@ -399,9 +513,18 @@ else
         StateHasChanged();
     }
 
+    // wersję roboczą może edytować każdy, kto dodaje albo edytuje artykuły; opublikowany artykuł tylko ten, kto je edytuje
+    private bool CanEditArticle(Article article) => article.IsDraft
+        ? Can(EnumPermissions.AddArticle) || Can(EnumPermissions.EditArticle)
+        : Can(EnumPermissions.EditArticle);
+
+    // wersja robocza bez tytułu też musi mieć nazwę na liście
+    private static string TitleOf(Article article) => string.IsNullOrWhiteSpace(article.Title) ? "(bez tytułu)" : article.Title;
+
     private bool CanOpenView(int v) => v switch
     {
-        2 => editingArticle is null ? Can(EnumPermissions.AddArticle) : Can(EnumPermissions.EditArticle),
+        2 => editingArticle is null ? Can(EnumPermissions.AddArticle) : CanEditArticle(editingArticle),
+        8 => Can(EnumPermissions.DeleteArticle),
         3 => Can(EnumPermissions.AddUser),
         4 => Can(EnumPermissions.ManageUser),
         6 => CanSubstitutions,
@@ -447,7 +570,7 @@ else
 
     private void StartEdit(Article article)
     {
-        if (!Can(EnumPermissions.EditArticle)) return;
+        if (!CanEditArticle(article)) return;
         editingArticle = article;
         view = 2;
     }
@@ -464,6 +587,128 @@ else
         editingArticle = null;
         view = 1;
         _ = ShowToastAsync("Zmiany zostały zapisane.");
+    }
+
+    private async Task OpenTrashAsync()
+    {
+        SetView(8);
+        await LoadDeletedAsync();
+    }
+
+    // kosz ładujemy tylko osobom z uprawnieniem do usuwania (te same osoby mogą przywracać)
+    private async Task LoadDeletedAsync()
+    {
+        if (!Can(EnumPermissions.DeleteArticle))
+        {
+            deletedList = new();
+            return;
+        }
+
+        trashLoading = true;
+        try
+        {
+            deletedList = await articleService.GetDeletedArticlesAsync();
+
+            var names = await fileService.GetFileNamesByIdsAsync(deletedList.Select(a => a.FileId));
+            foreach (var (id, name) in names)
+            {
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    imageUrls[id] = $"/Images/{name}";
+                }
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            deletedList = new();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Nie udało się wczytać kosza.");
+            _ = ShowToastAsync("Nie udało się wczytać kosza.", true);
+        }
+        finally
+        {
+            trashLoading = false;
+        }
+    }
+
+    private async Task RestoreAsync(Article article)
+    {
+        if (restoringId != 0) return;
+        restoringId = article.Id;
+        try
+        {
+            await articleService.RestoreArticleAsync(article.Id);
+            deletedList.Remove(article);
+            await RefreshAsync();
+            _ = ShowToastAsync("Artykuł został przywrócony.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            _ = ShowToastAsync("Nie masz uprawnienia do przywracania artykułów.", true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _ = ShowToastAsync(ex.Message, true);
+            await LoadDeletedAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Nie udało się przywrócić artykułu {ArticleId}.", article.Id);
+            _ = ShowToastAsync("Nie udało się przywrócić artykułu.", true);
+        }
+        finally
+        {
+            restoringId = 0;
+        }
+    }
+
+    private void CancelPurge()
+    {
+        if (!purging) pendingPurge = null;
+    }
+
+    // trwałe usunięcie z kosza: to samo uprawnienie co zwykłe usuwanie artykułów
+    private async Task ConfirmPurgeAsync()
+    {
+        if (pendingPurge is null) return;
+        var article = pendingPurge;
+        if (!Can(EnumPermissions.DeleteArticle))
+        {
+            pendingPurge = null;
+            _ = ShowToastAsync("Nie masz uprawnienia do usuwania artykułów.", true);
+            return;
+        }
+
+        purging = true;
+        try
+        {
+            await articleService.PurgeArticleAsync(article.Id);
+            deletedList.Remove(article);
+            pendingPurge = null;
+            _ = ShowToastAsync("Artykuł został usunięty trwale.");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            pendingPurge = null;
+            _ = ShowToastAsync("Nie masz uprawnienia do usuwania artykułów.", true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            pendingPurge = null;
+            _ = ShowToastAsync(ex.Message, true);
+            await LoadDeletedAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Nie udało się trwale usunąć artykułu {ArticleId}.", article.Id);
+            _ = ShowToastAsync("Nie udało się usunąć artykułu.", true);
+        }
+        finally
+        {
+            purging = false;
+        }
     }
 
     public async Task LoadArticleAsync()
@@ -500,6 +745,8 @@ else
                     imageUrls[id] = $"/Images/{name}";
                 }
             }
+
+            await LoadDeletedAsync();
         }
         finally
         {
@@ -522,6 +769,14 @@ else
             {
                 q = q.Where(a => Has(a.Title, search) || Has(a.Author, search) || Has(a.Text, search));
             }
+            if (statusFilter == "draft")
+            {
+                q = q.Where(a => a.IsDraft);
+            }
+            else if (statusFilter == "published")
+            {
+                q = q.Where(a => !a.IsDraft);
+            }
             if (!string.IsNullOrEmpty(authorFilter))
             {
                 q = q.Where(a => string.Equals(a.Author, authorFilter, StringComparison.OrdinalIgnoreCase));
@@ -533,6 +788,7 @@ else
             return sort switch
             {
                 "oldest" => q.OrderBy(a => a.Id),
+                "views" => q.OrderByDescending(a => a.ViewCount).ThenByDescending(a => a.Id),
                 "title" => q.OrderBy(a => a.Title, StringComparer.CurrentCultureIgnoreCase),
                 _ => q.OrderByDescending(a => a.Id)
             };
@@ -566,7 +822,8 @@ else
             await articleService.RemoveArticleByIdAsync(article.Id);
             articleList.Remove(article);
             pendingDelete = null;
-            _ = ShowToastAsync("Artykuł został usunięty.");
+            await LoadDeletedAsync();
+            _ = ShowToastAsync("Artykuł został przeniesiony do kosza.");
         }
         catch (UnauthorizedAccessException)
         {
@@ -595,24 +852,26 @@ else
     private string ViewTitle => view switch
     {
         1 => "Artykuły",
-        2 => editingArticle is null ? "Nowy artykuł" : "Edytuj artykuł",
+        2 => editingArticle is null ? "Nowy artykuł" : editingArticle.IsDraft ? "Edytuj wersję roboczą" : "Edytuj artykuł",
         3 => "Nowy użytkownik",
         4 => "Uprawnienia",
         5 => "Moje konto",
         6 => "Zastępstwa",
         7 => "Dane szkoły",
+        8 => "Kosz",
         _ => "Przegląd"
     };
 
     private string ViewSub => view switch
     {
-        1 => "Wyszukuj, podglądaj, edytuj i usuwaj artykuły (także zaplanowane i wygasłe).",
+        1 => "Wyszukuj, podglądaj, edytuj i usuwaj artykuły (także wersje robocze, zaplanowane i wygasłe).",
         2 => editingArticle is null ? "Napisz artykuł i dodaj do niego zdjęcie." : "Zmień tytuł, treść, autora lub zdjęcie artykułu.",
         3 => "Utwórz konto dla nowego użytkownika.",
         4 => "Nadawaj i odbieraj uprawnienia użytkownikom panelu.",
         5 => "Zmień swoje imię i nazwisko.",
         6 => "Dodawaj, edytuj i usuwaj zastępstwa za nieobecnych nauczycieli.",
         7 => "Zarządzaj klasami, nauczycielami, salami i przedmiotami.",
+        8 => "Usunięte artykuły możesz przywrócić (ze zdjęciami i galerią) albo usunąć trwale.",
         _ => "Zarządzaj artykułami i użytkownikami gazetki."
     };
 
@@ -639,6 +898,7 @@ else
         "shield" => "<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/><path d=\"M9 12l2 2 4-4\"/>",
         "calendar" => "<rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/>",
         "layers" => "<path d=\"M12 2l10 5-10 5L2 7z\"/><path d=\"M2 17l10 5 10-5M2 12l10 5 10-5\"/>",
+        "eye" => "<path d=\"M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>",
         "logout" => "<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9\"/>",
         _ => ""
     };

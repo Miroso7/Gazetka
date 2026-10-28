@@ -49,6 +49,9 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsDraft")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsPinned")
                         .HasColumnType("bit");
 
@@ -64,6 +67,9 @@ namespace SchoolNewspaperBlazorApp.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ViewCount")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -95,6 +101,9 @@ namespace SchoolNewspaperBlazorApp.Migrations
                         .HasColumnType("bit");
 
                     b.Property<int>("Placement")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
                     b.HasKey("Id");

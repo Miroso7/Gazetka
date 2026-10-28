@@ -6861,3 +6861,126 @@ body:has(.preview-overlay) {
         padding-inline: .5rem;
     }
 }
+
+/* ---------- Galeria w formularzu: zmiana kolejności zdjęć (przeciąganie i strzałki) ---------- */
+.photo-row {
+    grid-template-columns: 2.25rem 9rem minmax(0, 1fr);
+    transition: border-color .15s var(--ease), box-shadow .15s var(--ease), opacity .15s var(--ease);
+}
+
+.photo-row__order {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .25rem;
+}
+
+.photo-row__handle {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    color: var(--muted);
+    border-radius: 8px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+    .photo-row__handle:hover {
+        color: var(--blue);
+        background: var(--blue-soft);
+    }
+
+    .photo-row__handle:active {
+        cursor: grabbing;
+    }
+
+    .photo-row__handle .ico {
+        width: 1.1rem;
+        height: 1.1rem;
+    }
+
+.photo-row__move {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 1.7rem;
+    padding: 0;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: color .15s var(--ease), border-color .15s var(--ease), background .15s var(--ease);
+}
+
+    .photo-row__move:hover:not(:disabled),
+    .photo-row__move:focus-visible {
+        color: var(--blue);
+        border-color: var(--blue);
+        background: var(--blue-soft);
+    }
+
+    .photo-row__move:disabled {
+        opacity: .35;
+        cursor: default;
+    }
+
+    .photo-row__move .ico {
+        width: 1rem;
+        height: 1rem;
+    }
+
+.photo-row--dragging {
+    opacity: .45;
+}
+
+.photo-row--over {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(23, 105, 224, .22);
+}
+
+@media (max-width: 575.98px) {
+    .photo-row {
+        grid-template-columns: 1fr;
+    }
+
+    .photo-row__order {
+        flex-direction: row;
+        justify-content: flex-start;
+    }
+}
+
+/* ---------- Panel redakcji: wersje robocze, wyświetlenia i kosz ---------- */
+.state-chip--draft {
+    color: #5b3fa6;
+    background: #efe9fb;
+}
+
+.state-chip--views {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--line);
+}
+
+    .state-chip--views .ico {
+        width: .8rem;
+        height: .8rem;
+    }
+
+.a-row--deleted .a-row__thumb img {
+    filter: grayscale(.8);
+    opacity: .75;
+}
+
+.a-row--deleted .a-row__title {
+    color: var(--muted);
+}
+
+.draft-status {
+    min-height: 1.25rem;
+}

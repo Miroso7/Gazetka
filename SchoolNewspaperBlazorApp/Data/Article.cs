@@ -21,6 +21,11 @@ namespace SchoolNewspaperBlazorApp.Data
         public int FileId { get; set; }
         public List<ArticleImage> Images { get; set; } = new();
 
+        // wersja robocza: zapisana bez publikacji, widzi go tylko redakcja (publikacja = zapis pełnego formularza)
+        public bool IsDraft { get; set; }
+        // liczba wyświetleń strony artykułu przez czytelników (wersje robocze i zaplanowane artykuły się nie liczą)
+        public int ViewCount { get; set; }
+
         public bool IsDeleted { get; set; }
         public DateTime? DeletedAt { get; set; }
 

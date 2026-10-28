@@ -3,13 +3,14 @@
 @using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 @using Microsoft.Extensions.Logging
+@implements IDisposable
 @inject ILogger<ArticleForm> logger
 @inject IArticleService articleService
 @inject IFileService fileService
 @inject IPermissionService permissionService
 
 <div class="add-article-form">
-    <h1 class="add-article-form__title">@(IsEditing ? "Edytuj artykuł" : "Dodaj artykuł")</h1>
+    <h1 class="add-article-form__title">@(IsEditing ? (ArticleToEdit!.IsDraft ? "Edytuj wersję roboczą" : "Edytuj artykuł") : "Dodaj artykuł")</h1>
 
     @if (added)
     {
@@ -41,10 +42,10 @@
         </select>
 
         <label class="form-label">Tytuł *</label>
-        <input @bind="title" class="form-control mb-3" placeholder="Wpisz tytuł..." />
+        <input @bind="title" @bind:event="oninput" class="form-control mb-3" placeholder="Wpisz tytuł..." />
 
         <label class="form-label">Treść *</label>
-        <textarea @bind="text" class="form-control mb-1" rows="6" placeholder="Treść artykułu..."></textarea>
+        <textarea @bind="text" @bind:event="oninput" class="form-control mb-1" rows="6" placeholder="Treść artykułu..."></textarea>
         <div class="form-text mb-3">
             Akapity oddzielaj pustą linią. Zdjęcia ułożysz niżej w sekcji „Galeria zdjęć”: dla każdego wybierzesz, czy ma być w tekście
             (po lewej, na środku lub po prawej) i po którym akapicie.
@@ -96,7 +97,7 @@
         }
 
         <label class="form-label">Autor</label>
-        <input @bind="author" class="form-control mb-4" placeholder="Imię i nazwisko" />
+        <input @bind="author" @bind:event="oninput" class="form-control mb-4" placeholder="Imię i nazwisko" />
 
         <fieldset class="type-fields schedule-fields">
             <legend class="type-fields__title">Publikacja</legend>
@@ -152,7 +153,23 @@
                 {
                     var item = photo;
                     var number = NumberOf(item);
-                    <li @key="item" class="photo-row">
+                    <li @key="item" class="@RowClass(item)"
+                        @ondragover:preventDefault @ondragenter="() => overPhoto = item" @ondrop="() => DropOn(item)">
+                        <div class="photo-row__order">
+                            <span class="photo-row__handle" draggable="true" data-photo-drag
+                                  @ondragstart="() => draggedPhoto = item" @ondragend="EndDrag"
+                                  title="Przeciągnij, aby zmienić kolejność zdjęć">
+                                <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>
+                            </span>
+                            <button type="button" class="photo-row__move" @onclick="() => MovePhoto(item, -1)"
+                                    disabled="@(number == 1)" aria-label="Przesuń zdjęcie @number wyżej" title="Wyżej">
+                                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
+                            </button>
+                            <button type="button" class="photo-row__move" @onclick="() => MovePhoto(item, 1)"
+                                    disabled="@(number == GalleryCount)" aria-label="Przesuń zdjęcie @number niżej" title="Niżej">
+                                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                            </button>
+                        </div>
                         <div class="photo-row__thumb">
                             <img src="@item.Url" alt="Zdjęcie @number z galerii" loading="lazy" decoding="async" />
                             <span class="gallery-edit__num" title="Numer zdjęcia w galerii">@number</span>
@@ -196,7 +213,11 @@
                    disabled="@GalleryFull" class="form-control gallery-edit__input mb-1" />
         <div class="form-text gallery-edit__hint mb-4">
             Zdjęcia w galerii: @GalleryCount / @IArticleService.MaxGalleryImages (JPG, PNG, GIF lub WebP; zdjęcia do 25 MB są zmniejszane do 1920 px, GIF-y do 5 MB).
-            Zmiany zapiszą się po kliknięciu „@(IsEditing ? "Zapisz zmiany" : "Dodaj")”.
+            @if (GalleryCount > 1)
+            {
+                <text>Kolejność zmienisz, przeciągając uchwyt przy zdjęciu albo strzałkami. </text>
+            }
+            Zmiany zapiszą się po kliknięciu „@SubmitLabel”.
         </div>
 
         <button type="button" class="btn btn-outline-primary w-100 mb-3" @onclick="OpenPreview"
@@ -204,7 +225,17 @@
             Podgląd artykułu
         </button>
 
-        <button type="submit" class="btn btn-primary w-100">@(IsEditing ? "Zapisz zmiany" : "Dodaj")</button>
+        @if (IsDraftMode)
+        {
+            <button type="button" class="btn btn-outline-primary w-100 mb-2" @onclick="SaveDraftNowAsync" disabled="@draftBusy">
+                Zapisz wersję roboczą
+            </button>
+            <div class="form-text draft-status mb-3" role="status" aria-live="polite">
+                @(draftStatus ?? "Wersja robocza zapisuje się sama co kilka sekund (tytuł, treść i ustawienia; zdjęcia dodasz przy publikacji).")
+            </div>
+        }
+
+        <button type="submit" class="btn btn-primary w-100" disabled="@draftBusy">@SubmitLabel</button>
         @if (IsEditing)
         {
             <button type="button" class="btn btn-outline-primary w-100 mt-2" @onclick="Cancel">Anuluj</button>
@@ -319,10 +350,55 @@
         public bool IsNew => Saved is null;
     }
 
+    // zmiana kolejności zdjęć w galerii: przeciąganie uchwytu (zdjęcie przeciągane i to, nad którym jest kursor)
+    private PhotoItem? draggedPhoto;
+    private PhotoItem? overPhoto;
+
+    // wersja robocza: nowy artykuł i wersja robocza z panelu zapisują się same co kilka sekund; opublikowany artykuł nigdy (nie nadpisujemy go bez zapisu)
+    private const int DraftAutosaveSeconds = 5;
+    private int? draftId;
+    private string? draftStatus;
+    private string lastSavedSnapshot = "";
+    private bool draftBusy;
+    private bool disposed;
+    private System.Threading.Timer? draftTimer;
+
     private bool showPreview;
     private bool previewPhone;
     private bool focusPreview;
     private ElementReference previewOverlay;
+
+    private bool IsDraftMode => !IsEditing || ArticleToEdit!.IsDraft;
+
+    private string SubmitLabel => IsEditing ? (ArticleToEdit!.IsDraft ? "Opublikuj" : "Zapisz zmiany") : "Dodaj";
+
+    private string RowClass(PhotoItem item) =>
+        "photo-row" + (ReferenceEquals(item, draggedPhoto) ? " photo-row--dragging" : "")
+                    + (draggedPhoto is not null && ReferenceEquals(item, overPhoto) && !ReferenceEquals(item, draggedPhoto) ? " photo-row--over" : "");
+
+    private void MovePhoto(PhotoItem photo, int offset)
+    {
+        var from = photos.IndexOf(photo);
+        var to = from + offset;
+        if (from < 0 || to < 0 || to >= photos.Count) return;
+        photos.RemoveAt(from);
+        photos.Insert(to, photo);
+    }
+
+    private void DropOn(PhotoItem target)
+    {
+        var moved = draggedPhoto;
+        draggedPhoto = overPhoto = null;
+        if (moved is null || ReferenceEquals(moved, target)) return;
+
+        var from = photos.IndexOf(moved);
+        var to = photos.IndexOf(target);
+        if (from < 0 || to < 0) return;
+        photos.RemoveAt(from);
+        photos.Insert(to, moved);
+    }
+
+    private void EndDrag() => draggedPhoto = overPhoto = null;
 
     // numer zdjęcia w galerii (od 1): najpierw zapisane, potem nowe – tak samo jak kolejność na stronie artykułu
     private int NumberOf(PhotoItem photo) => photos.IndexOf(photo) + 1;
@@ -476,8 +552,10 @@
         author = ArticleToEdit.Author ?? "";
         type = ArticleToEdit.Type;
         isPinned = ArticleToEdit.IsPinned;
-        publishDate = DateText(ArticleToEdit.PublishDate);
-        publishTime = TimeText(ArticleToEdit.PublishDate);
+        // wersja robocza dostaje datę publikacji dopiero przy publikacji; pole wypełniamy tylko, gdy ktoś zaplanował datę w przyszłości
+        var keepPublishDate = !ArticleToEdit.IsDraft || ArticleToEdit.PublishDate > DateTime.Now;
+        publishDate = keepPublishDate ? DateText(ArticleToEdit.PublishDate) : "";
+        publishTime = keepPublishDate ? TimeText(ArticleToEdit.PublishDate) : "";
         expiresDate = DateText(ArticleToEdit.ExpiresAt);
         expiresTime = TimeText(ArticleToEdit.ExpiresAt);
         details = ArticleFields.Parse(ArticleToEdit.Details);
@@ -496,6 +574,8 @@
         {
             logger.LogWarning(ex, "Nie udało się wczytać zdjęcia okładki artykułu {ArticleId}.", loadedArticleId);
         }
+
+        draftId = ArticleToEdit.IsDraft ? ArticleToEdit.Id : null;
 
         photos.Clear();
         removedImageIds.Clear();
@@ -525,6 +605,9 @@
         {
             logger.LogWarning(ex, "Nie udało się wczytać galerii artykułu {ArticleId}.", loadedArticleId);
         }
+
+        // wczytana wersja robocza jest już zapisana, więc autozapis nie powtarza go bez zmian
+        lastSavedSnapshot = Snapshot();
     }
 
     private async Task ChooseGalleryPhotos(InputFileChangeEventArgs e)
@@ -617,6 +700,8 @@
 
     private async Task SaveArticle()
     {
+        // w trakcie zapisu autozapis wersji roboczej czeka (inaczej mógłby utworzyć duplikat tuż po publikacji)
+        draftBusy = true;
         try
         {
             await SaveArticleCore();
@@ -625,13 +710,89 @@
         {
             errorMessage = ex.Message;
         }
+        finally
+        {
+            draftBusy = false;
+        }
+    }
+
+    // stan pól formularza do porównania: autozapis zapisuje wersję roboczą tylko wtedy, gdy coś się zmieniło od ostatniego zapisu
+    private string Snapshot() => string.Join('\u001f', new object[]
+    {
+        title, text, author, type, isPinned, publishDate, publishTime, expiresDate, expiresTime,
+        string.Join(';', details.OrderBy(d => d.Key, StringComparer.Ordinal).Select(d => d.Key + "=" + d.Value))
+    });
+
+    private async Task AutoSaveDraftAsync()
+    {
+        if (disposed || draftBusy) return;
+        if (Snapshot() == lastSavedSnapshot) return;
+        if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(text)) return;
+        await SaveDraftCoreAsync();
+    }
+
+    private async Task SaveDraftNowAsync()
+    {
+        if (draftBusy) return;
+        if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(text))
+        {
+            draftStatus = "Wpisz tytuł lub treść, żeby zapisać wersję roboczą.";
+            return;
+        }
+        await SaveDraftCoreAsync();
+    }
+
+    private async Task SaveDraftCoreAsync()
+    {
+        draftBusy = true;
+        try
+        {
+            var snapshot = Snapshot();
+
+            // wersja robocza może mieć niedokończone daty: niepoprawnej po prostu nie zapisujemy, błąd pokaże się dopiero przy publikacji
+            DateTime? publishAt = null;
+            DateTime? expiresAt = null;
+            try { publishAt = ParseMoment(publishDate, publishTime, TimeSpan.Zero, "Opublikuj od"); }
+            catch (InvalidOperationException) { }
+            try { expiresAt = ParseMoment(expiresDate, expiresTime, new TimeSpan(23, 59, 59), "Wyświetlaj do"); }
+            catch (InvalidOperationException) { }
+
+            draftId = await articleService.SaveDraftAsync(draftId, title, text, author, type, details, isPinned, publishAt, expiresAt);
+            lastSavedSnapshot = snapshot;
+            draftStatus = $"Wersja robocza zapisana o {DateTime.Now:HH:mm:ss}.";
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            draftStatus = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Nie udało się zapisać wersji roboczej artykułu {ArticleId}.", draftId);
+            draftStatus = "Nie udało się zapisać wersji roboczej. Spróbuję ponownie przy następnej zmianie.";
+        }
+        finally
+        {
+            draftBusy = false;
+        }
+
+        if (!disposed) StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        disposed = true;
+        draftTimer?.Dispose();
     }
 
     private async Task SaveArticleCore()
     {
         // sprawdzamy permisję zanim cokolwiek wgramy (zdjęcie trafia na dysk jeszcze przed zapisem artykułu)
-        var needed = IsEditing ? EnumPermissions.EditArticle : EnumPermissions.AddArticle;
-        if (!await permissionService.HasPermissionAsync(needed))
+        // wersję roboczą (też tę z nowego formularza) może opublikować każdy, kto dodaje albo edytuje artykuły
+        var publishingDraft = IsEditing ? ArticleToEdit!.IsDraft : draftId is not null;
+        var canAdd = await permissionService.HasPermissionAsync(EnumPermissions.AddArticle);
+        var canEdit = await permissionService.HasPermissionAsync(EnumPermissions.EditArticle);
+        var allowed = publishingDraft ? canAdd || canEdit : IsEditing ? canEdit : canAdd;
+        if (!allowed)
         {
             errorMessage = IsEditing
                 ? "Nie masz uprawnienia do edycji artykułów."
@@ -686,9 +847,12 @@
         var galleryFileIds = newPhotos.Count > 0
             ? await fileService.UploadImages(newPhotos.Select(p => p.Bytes!).ToList())
             : new List<int>();
-        var newPlacements = newPhotos.Select(p => new ArticleImagePlacement(p.Placement, p.After)).ToList();
+        // Order = miejsce zdjęcia na liście w formularzu (kolejność galerii)
+        var newPlacements = newPhotos.Select(p => new ArticleImagePlacement(p.Placement, p.After, photos.IndexOf(p))).ToList();
 
-        if (IsEditing)
+        // edytowany artykuł albo wersja robocza utworzona przez autozapis nowego formularza: zapis pełnego formularza ją aktualizuje (i publikuje)
+        var targetId = IsEditing ? ArticleToEdit!.Id : draftId;
+        if (targetId is { } existingId)
         {
             // bez nowego zdjęcia zostaje dotychczasowe
             int fileId = existingFileId;
@@ -698,20 +862,26 @@
             }
             var changedPlacements = photos
                 .Where(p => p.Saved is not null)
-                .ToDictionary(p => p.Saved!.Id, p => new ArticleImagePlacement(p.Placement, p.After));
-            await articleService.UpdateArticleAsync(ArticleToEdit!.Id, title, text, author, type, fileId, galleryFileIds, removedImageIds, details,
+                .ToDictionary(p => p.Saved!.Id, p => new ArticleImagePlacement(p.Placement, p.After, photos.IndexOf(p)));
+            await articleService.UpdateArticleAsync(existingId, title, text, author, type, fileId, galleryFileIds, removedImageIds, details,
                 isPinned, publishAt, expiresAt, newPlacements, changedPlacements);
             file = null;
-            await OnEdited.InvokeAsync();
-            return;
+            if (IsEditing)
+            {
+                await OnEdited.InvokeAsync();
+                return;
+            }
         }
-
-        int id = 0;
-        if (file != null)
+        else
         {
-            id = await fileService.UploadImage(file);
+            int id = 0;
+            if (file != null)
+            {
+                id = await fileService.UploadImage(file);
+            }
+            await articleService.AddArticleAsync(title, text, author, type, id, galleryFileIds, details, isPinned, publishAt, expiresAt, newPlacements);
         }
-        await articleService.AddArticleAsync(title, text, author, type, id, galleryFileIds, details, isPinned, publishAt, expiresAt, newPlacements);
+        draftId = null;
         title = text = author = "";
         isPinned = false;
         publishDate = publishTime = expiresDate = expiresTime = "";
@@ -722,6 +892,8 @@
         galleryInputKey++;
         file = null;
         fileInputKey++; // czyści pole wyboru pliku
+        draftStatus = null;
+        lastSavedSnapshot = Snapshot();
         added = true;
         await OnAdded.InvokeAsync();
     }
@@ -741,6 +913,16 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender && IsDraftMode)
+        {
+            // autozapis wersji roboczej: co kilka sekund sprawdza, czy formularz się zmienił
+            draftTimer = new System.Threading.Timer(
+                _ => { if (!disposed) _ = InvokeAsync(AutoSaveDraftAsync); },
+                null,
+                TimeSpan.FromSeconds(DraftAutosaveSeconds),
+                TimeSpan.FromSeconds(DraftAutosaveSeconds));
+        }
+
         // fokus na podglądzie, żeby Esc działał od razu po otwarciu
         if (!focusPreview || !showPreview) return;
         focusPreview = false;

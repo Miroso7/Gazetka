@@ -173,6 +173,25 @@ namespace SchoolNewspaperBlazorApp.Data
             return clean.Count == 0 ? null : JsonSerializer.Serialize(clean);
         }
 
+        // Odmiana dla wersji roboczych: nie sprawdza wymaganych pól ani formatów (wersja robocza może być niedokończona).
+        // Przy publikacji i tak działa ToJson.
+        public static string? ToDraftJson(ArticleType type, IReadOnlyDictionary<string, string>? values)
+        {
+            var clean = new Dictionary<string, string>();
+
+            foreach (var field in For(type))
+            {
+                string? value = null;
+                values?.TryGetValue(field.Key, out value);
+                value = value?.Trim();
+                if (string.IsNullOrEmpty(value)) continue;
+
+                clean[field.Key] = value.Length > MaxTextLength ? value[..MaxTextLength] : value;
+            }
+
+            return clean.Count == 0 ? null : JsonSerializer.Serialize(clean);
+        }
+
         // Wypełnione pola artykułu w kolejności z formularza, z wartościami gotowymi do pokazania.
         public static List<(string Label, string Value)> Display(Article article)
         {

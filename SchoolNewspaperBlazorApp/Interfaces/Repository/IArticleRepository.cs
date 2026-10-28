@@ -18,6 +18,17 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Repository
             IReadOnlyList<ArticleImagePlacement>? addedPlacements = null, IReadOnlyDictionary<int, ArticleImagePlacement>? changedPlacements = null);
         // Usuwa artykuł miękko (IsDeleted = 1). Zdjęcia i galeria zostają, żeby artykuł dało się przywrócić.
         Task RemoveArticleByIdAsync(int id);
+        // Tworzy wersję roboczą (Id == 0) albo aktualizuje istniejącą; zapisuje tylko pola tekstowe i ustawienia publikacji. Zwraca jej Id.
+        Task<int> SaveDraftAsync(Article draft);
+        // Usunięte artykuły (kosz), od ostatnio usuniętych.
+        Task<List<Article>> GetDeletedArticlesAsync();
+        // Przywraca usunięty artykuł (zdjęcia i galeria nigdy nie były kasowane); false, gdy nie ma takiego w koszu.
+        Task<bool> RestoreArticleAsync(int id);
+        // Trwale usuwa artykuł z kosza razem z wpisami galerii (DELETE w bazie, bez powrotu). Zwraca FileId jego zdjęć
+        // (główne i z galerii) albo null, gdy artykułu nie ma w koszu. Wpisy o plikach oznacza jako usunięte serwis.
+        Task<List<int>?> PurgeArticleAsync(int id);
+        // Zwiększa licznik wyświetleń opublikowanego artykułu o 1.
+        Task IncrementViewCountAsync(int id);
         Task<List<ArticleImageDto>> GetArticleImagesAsync(int articleId);
         Task<int> CountArticleImagesAsync(int articleId);
     }

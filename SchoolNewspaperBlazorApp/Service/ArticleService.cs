@@ -14,6 +14,8 @@ namespace SchoolNewspaperBlazorApp.Service
         private readonly IPermissionService _permissionService;
         private readonly IFileService _fileService;
         private readonly ILogger<ArticleService> _logger;
+        // artykuły, których wyświetlenie już policzono w tej sesji (odświeżenie strony nie nabija licznika)
+        private readonly HashSet<int> _viewedArticleIds = new();
         public ArticleService(
             IArticleRepository articleRepository,
             IPermissionService permissionService,
@@ -52,7 +54,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 Images = gallery.Select((galleryFileId, index) =>
                 {
                     var placement = PlacementAt(galleryPlacements, index);
-                    return new ArticleImage { FileId = galleryFileId, Placement = placement.Placement, InlineAfter = placement.After };
+                    return new ArticleImage { FileId = galleryFileId, Placement = placement.Placement, InlineAfter = placement.After, SortOrder = placement.Order };
                 }).ToList()
             };
             await _articleRepository.AddArticleAsync(article);
@@ -79,10 +81,10 @@ namespace SchoolNewspaperBlazorApp.Service
                 throw new Exception($"Article with ID {id} not found.");
             }
 
-            // zaplanowany artykuł pod bezpośrednim linkiem widzi tylko redakcja (wygasły otwiera się normalnie)
-            if (article.PublishDate > DateTime.Now && !await CanSeeUnpublishedAsync())
+            // zaplanowany artykuł i wersja robocza pod bezpośrednim linkiem widzi tylko redakcja (wygasły otwiera się normalnie)
+            if ((article.IsDraft || article.PublishDate > DateTime.Now) && !await CanSeeUnpublishedAsync())
             {
-                _logger.LogDebug("Artykuł {ArticleId} jest zaplanowany, a użytkownik nie należy do redakcji.", id);
+                _logger.LogDebug("Artykuł {ArticleId} jest wersją roboczą lub jest zaplanowany, a użytkownik nie należy do redakcji.", id);
                 return null;
             }
             return article;
@@ -105,18 +107,27 @@ namespace SchoolNewspaperBlazorApp.Service
             IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null,
             IReadOnlyList<ArticleImagePlacement>? addedPlacements = null, IReadOnlyDictionary<int, ArticleImagePlacement>? changedPlacements = null)
         {
-            await _permissionService.RequirePermissionAsync(EnumPermissions.EditArticle);
             if (id <= 0)
             {
                 throw new ArgumentException("Nieprawidłowe ID artykułu.", nameof(id));
             }
+            var existing = await _articleRepository.GetArticleByIdAsync(id);
+            // wersję roboczą może opublikować każdy, kto dodaje albo edytuje artykuły; opublikowany artykuł tylko ten, kto je edytuje
+            if (existing.IsDraft)
+            {
+                await RequireDraftPermissionAsync();
+            }
+            else
+            {
+                await _permissionService.RequirePermissionAsync(EnumPermissions.EditArticle);
+            }
             ValidateArticleFields(title, text);
             ValidateType(type);
 
-            // brak daty „Opublikuj od” zostawia dotychczasową datę publikacji; zaplanowany artykuł z wyczyszczoną datą publikuje się od razu
-            var existing = await _articleRepository.GetArticleByIdAsync(id);
+            // brak daty „Opublikuj od” zostawia dotychczasową datę publikacji; zaplanowany artykuł z wyczyszczoną datą publikuje się od razu,
+            // a wersja robocza dostaje datę publikacji z chwili publikowania (nie z chwili jej zapisania)
             var now = DateTime.Now;
-            var publishDate = publishAt ?? (existing.PublishDate > now ? now : existing.PublishDate);
+            var publishDate = publishAt ?? (existing.IsDraft || existing.PublishDate > now ? now : existing.PublishDate);
             ValidateSchedule(publishDate, expiresAt);
             var detailsJson = ArticleFields.ToJson(type, details);
 
@@ -160,14 +171,113 @@ namespace SchoolNewspaperBlazorApp.Service
                 }
             }
         }
+        // Wersje robocze: zapisuje je każdy, kto może dodawać albo edytować artykuły.
+        private async Task RequireDraftPermissionAsync()
+        {
+            if (await _permissionService.HasPermissionAsync(EnumPermissions.AddArticle)
+                || await _permissionService.HasPermissionAsync(EnumPermissions.EditArticle))
+            {
+                return;
+            }
+            await _permissionService.RequirePermissionAsync(EnumPermissions.AddArticle);
+        }
+        public async Task<int> SaveDraftAsync(int? id, string title, string text, string author, ArticleType type,
+            IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null)
+        {
+            await RequireDraftPermissionAsync();
+            ValidateType(type);
+            if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(text))
+            {
+                throw new InvalidOperationException("Wpisz tytuł lub treść, żeby zapisać wersję roboczą.");
+            }
+
+            // wersja robocza może być niepełna: bez sprawdzania wymaganych pól i dat (to dopiero przy publikacji)
+            var draft = new Article
+            {
+                Id = id ?? 0,
+                Title = title?.Trim() ?? string.Empty,
+                Text = text?.Trim() ?? string.Empty,
+                Author = author?.Trim() ?? string.Empty,
+                PublishDate = publishAt ?? DateTime.Now,
+                ExpiresAt = expiresAt,
+                IsPinned = isPinned,
+                Type = type,
+                Details = ArticleFields.ToDraftJson(type, details),
+                FileId = 0,
+                IsDraft = true
+            };
+            var draftId = await _articleRepository.SaveDraftAsync(draft);
+            _logger.LogDebug("Zapisano wersję roboczą artykułu {ArticleId}.", draftId);
+            return draftId;
+        }
+        public async Task<List<Article>> GetDeletedArticlesAsync()
+        {
+            await _permissionService.RequirePermissionAsync(EnumPermissions.DeleteArticle);
+            return await _articleRepository.GetDeletedArticlesAsync();
+        }
+        public async Task RestoreArticleAsync(int id)
+        {
+            await _permissionService.RequirePermissionAsync(EnumPermissions.DeleteArticle);
+            if (id <= 0) return;
+
+            if (!await _articleRepository.RestoreArticleAsync(id))
+            {
+                throw new InvalidOperationException("Tego artykułu nie ma już w koszu.");
+            }
+            _logger.LogInformation("Przywrócono artykuł {ArticleId} z kosza.", id);
+        }
+        public async Task PurgeArticleAsync(int id)
+        {
+            await _permissionService.RequirePermissionAsync(EnumPermissions.DeleteArticle);
+            if (id <= 0) return;
+
+            var fileIds = await _articleRepository.PurgeArticleAsync(id);
+            if (fileIds is null)
+            {
+                throw new InvalidOperationException("Tego artykułu nie ma już w koszu.");
+            }
+            _logger.LogInformation("Trwale usunięto artykuł {ArticleId} z kosza.", id);
+
+            // artykuł jest już usunięty z bazy, więc błąd przy zdjęciach nie może pokazać błędu
+            if (fileIds.Count > 0)
+            {
+                try
+                {
+                    await _fileService.DeleteFilesAsync(fileIds);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Nie udało się usunąć zdjęć trwale usuniętego artykułu {ArticleId}.", id);
+                }
+            }
+        }
+        public async Task RegisterViewAsync(int id)
+        {
+            if (id <= 0) return;
+            // jedno wyświetlenie na artykuł w sesji (serwis żyje tyle, co połączenie przeglądarki)
+            lock (_viewedArticleIds)
+            {
+                if (!_viewedArticleIds.Add(id)) return;
+            }
+
+            try
+            {
+                await _articleRepository.IncrementViewCountAsync(id);
+            }
+            catch (Exception ex)
+            {
+                // licznik nie może psuć wyświetlania artykułu
+                _logger.LogWarning(ex, "Nie udało się policzyć wyświetlenia artykułu {ArticleId}.", id);
+            }
+        }
         // brak ułożenia = zdjęcie tylko w galerii; nieprawidłowe wartości też wracają do galerii
         private static ArticleImagePlacement PlacementAt(IReadOnlyList<ArticleImagePlacement>? placements, int index) =>
             placements is not null && index < placements.Count ? Sanitize(placements[index]) : new ArticleImagePlacement(InlinePlacement.Gallery, 0);
 
         private static ArticleImagePlacement Sanitize(ArticleImagePlacement value) =>
             Enum.IsDefined(value.Placement)
-                ? new ArticleImagePlacement(value.Placement, Math.Max(0, value.After))
-                : new ArticleImagePlacement(InlinePlacement.Gallery, 0);
+                ? new ArticleImagePlacement(value.Placement, Math.Max(0, value.After), Math.Max(0, value.Order))
+                : new ArticleImagePlacement(InlinePlacement.Gallery, 0, Math.Max(0, value.Order));
         // Tytuł i treść są wymagane, autor jest opcjonalny.
         private static void ValidateArticleFields(string? title, string? text)
         {

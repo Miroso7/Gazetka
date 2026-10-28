@@ -12,6 +12,8 @@ namespace SchoolNewspaperBlazorApp.Data
         public InlinePlacement Placement { get; set; }
         // zdjęcie w treści pokazuje się po tylu akapitach (0 = przed pierwszym)
         public int InlineAfter { get; set; }
+        // kolejność w galerii (rosnąco, przy równych wartościach decyduje Id)
+        public int SortOrder { get; set; }
 
         public bool IsDeleted { get; set; }
         public DateTime? DeletedAt { get; set; }

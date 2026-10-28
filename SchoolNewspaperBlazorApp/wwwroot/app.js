@@ -5,6 +5,17 @@ window.articleForm = {
     }
 };
 
+// zmiana kolejności zdjęć w formularzu artykułu: Firefox zaczyna przeciąganie tylko, gdy dragstart ustawi dane,
+// a Blazor nie ma do tego dostępu, więc robi to ta mała nakładka (całą resztą zajmuje się Blazor)
+document.addEventListener("dragstart", function(event) {
+    var handle = event.target.closest && event.target.closest("[data-photo-drag]");
+    if (!handle || !event.dataTransfer) return;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", "photo");
+    var row = handle.closest(".photo-row");
+    if (row && event.dataTransfer.setDragImage) event.dataTransfer.setDragImage(row, 24, 24);
+});
+
 // menu na telefonie zamyka się po wybraniu linku lub wysłaniu wyszukiwania (nawigacja bez przeładowania strony zostawiłaby je otwarte)
 (function() {
     function closeNav() {

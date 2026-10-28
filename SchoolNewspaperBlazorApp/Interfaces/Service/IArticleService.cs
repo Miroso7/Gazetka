@@ -32,6 +32,17 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
             IReadOnlyList<int>? addedFileIds = null, IReadOnlyList<int>? removedImageIds = null,
             IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null,
             IReadOnlyList<ArticleImagePlacement>? addedPlacements = null, IReadOnlyDictionary<int, ArticleImagePlacement>? changedPlacements = null);
+        // Zapisuje wersję roboczą bez publikacji (id = null tworzy nową) i zwraca jej Id. Może być niepełna; nie dotyka zdjęć.
+        // Opublikowanego artykułu nie nadpisuje. Publikacja wersji roboczej = UpdateArticleAsync z pełnym formularzem.
+        Task<int> SaveDraftAsync(int? id, string title, string text, string author, ArticleType type,
+            IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null);
+        // Kosz: usunięte artykuły (wymaga uprawnienia do usuwania) i ich przywracanie.
+        Task<List<Article>> GetDeletedArticlesAsync();
+        Task RestoreArticleAsync(int id);
+        // Trwale usuwa artykuł z kosza (bez możliwości przywrócenia); wymaga uprawnienia do usuwania artykułów.
+        Task PurgeArticleAsync(int id);
+        // Liczy jedno wyświetlenie artykułu (raz na sesję przeglądarki i artykuł).
+        Task RegisterViewAsync(int id);
         Task RemoveArticleByIdAsync(int id);
     }
 }

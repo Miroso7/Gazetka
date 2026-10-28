@@ -169,6 +169,7 @@ else
     private bool loadFailed;
     private bool copied;
     private int loadedId = -1;
+    private int countedId;
     private CancellationTokenSource? copiedCts;
 
     private IReadOnlyList<string> Paragraphs { get; set; } = Array.Empty<string>();
@@ -184,6 +185,14 @@ else
             var flat = string.Join(' ', Paragraphs);
             return flat.Length <= 160 ? flat : flat[..157].TrimEnd() + "…";
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // wyświetlenie liczymy dopiero po wyrenderowaniu w przeglądarce (prerender nie nabija licznika); serwis liczy artykuł raz na sesję
+        if (article is null || article.IsDraft || article.Id == countedId) return;
+        countedId = article.Id;
+        await ArticleService.RegisterViewAsync(article.Id);
     }
 
     protected override async Task OnParametersSetAsync()
