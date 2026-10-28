@@ -43,6 +43,12 @@
                 </nav>
 
                 <div class="site-nav__actions">
+                    @* zegar i data (widoczne od 1200 px); pola wypełnia app.js, więc Blazor nie przerysowuje ich co sekundę *@
+                    <div class="site-clock" aria-hidden="true">
+                        <time class="site-clock__time" data-site-clock="time"></time>
+                        <span class="site-clock__date" data-site-clock="date"></span>
+                    </div>
+
                     <HeaderSearch />
 
                     <AuthorizeView>

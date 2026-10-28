@@ -72,6 +72,10 @@ namespace SchoolNewspaperBlazorApp.Repository
                     u.LastName,
                     u.Email,
                     u.Role,
+                    AvatarFileName = context.Files
+                        .Where(f => f.Id == u.AvatarFileId)
+                        .Select(f => f.FileName)
+                        .FirstOrDefault(),
                     Names = u.UserPermission.Select(up => up.Permission.PermissionName).ToList()
                 })
                 .ToListAsync();
@@ -83,6 +87,7 @@ namespace SchoolNewspaperBlazorApp.Repository
                 LastName = r.LastName,
                 Email = r.Email,
                 Role = r.Role,
+                AvatarFileName = r.AvatarFileName,
                 Permissions = r.Names.ToHashSet()
             }).ToList();
         }

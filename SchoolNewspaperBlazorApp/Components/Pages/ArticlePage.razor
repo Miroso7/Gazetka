@@ -139,7 +139,17 @@ else
                     <strong class="ap-foot__name">@article.Author</strong>
                 </div>
             </div>
-            <a class="btn btn-outline-primary" href="/">Więcej artykułów →</a>
+            <div class="ap-foot__links">
+                @if (!string.IsNullOrWhiteSpace(article.Author))
+                {
+                    <a class="btn btn-outline-primary" href="@($"/?autor={Uri.EscapeDataString(article.Author.Trim())}#aktualnosci")">Więcej artykułów autora →</a>
+                }
+                else
+                {
+                    @* bez podpisu autora nie ma czyjej listy pokazać, więc zostaje ogólny link *@
+                    <a class="btn btn-outline-primary" href="/">Więcej artykułów →</a>
+                }
+            </div>
         </footer>
     </article>
 }
@@ -195,6 +205,7 @@ else
 
         try
         {
+            // null = artykuł zaplanowany, którego czytelnik jeszcze nie może zobaczyć (strona pokaże „Nie znaleziono artykułu”)
             article = await ArticleService.GetArticleByIdAsync(Id);
 
             if (article is not null)

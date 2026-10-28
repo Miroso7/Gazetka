@@ -54,6 +54,9 @@ namespace SchoolNewspaperBlazorApp.Data
         public string Email { get; set; } = "";
         public UserRole Role { get; set; } = UserRole.Student;
         public HashSet<EnumPermissions> Permissions { get; set; } = new();
+        // nazwa pliku zdjęcia profilowego (null = brak zdjęcia, na liście pokazują się inicjały)
+        public string? AvatarFileName { get; set; }
+        public string? AvatarUrl => UserProfile.AvatarUrlFor(AvatarFileName);
 
         // konto master i konto zalogowanego użytkownika nie mogą zostać usunięte z panelu
         public bool IsMaster => Permissions.Contains(EnumPermissions.Master);

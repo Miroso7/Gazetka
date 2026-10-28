@@ -48,6 +48,8 @@ namespace SchoolNewspaperBlazorApp
 
             // sesje logowania: pozwalają unieważnić logowanie także w otwartych obwodach Blazora
             builder.Services.AddSingleton<ISessionRegistry, SessionRegistry>();
+            // blokada logowania po serii nieudanych prób (brute force)
+            builder.Services.AddSingleton<LoginThrottle>();
             builder.Services.AddScoped<AuthenticationStateProvider, SessionRevalidatingAuthenticationStateProvider>();
 
             builder.Services.AddAuthentication(
@@ -151,6 +153,7 @@ namespace SchoolNewspaperBlazorApp
                 HttpContext context,
                 IAuthService authService,
                 ISessionRegistry sessions,
+                LoginThrottle throttle,
                 ILogger<Program> logger) =>
             {
                 // żądanie musi pochodzić z formularza z naszej strony (token antiforgery)
@@ -163,12 +166,25 @@ namespace SchoolNewspaperBlazorApp
                 string email = form["Email"].ToString().Trim();
                 string password = form["Password"].ToString();
 
+                var remoteIp = context.Connection.RemoteIpAddress;
+                var ip = remoteIp is null ? null : (remoteIp.IsIPv4MappedToIPv6 ? remoteIp.MapToIPv4() : remoteIp).ToString();
+
+                // zablokowany e-mail lub adres IP: nawet nie sprawdzamy hasła
+                if (throttle.IsBlocked(email, ip, out var retryAfter))
+                {
+                    logger.LogWarning("Logowanie zablokowane (za dużo nieudanych prób) dla adresu {RemoteIp}.", remoteIp);
+                    var minutes = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalMinutes));
+                    return Results.Redirect($"/login?error=locked&min={minutes}");
+                }
+
                 var login = await authService.LoginAsync(email, password);
                 if (!login.Success)
                 {
-                    logger.LogWarning("Nieudane logowanie z adresu {RemoteIp}.", context.Connection.RemoteIpAddress);
+                    throttle.RegisterFailure(email, ip);
+                    logger.LogWarning("Nieudane logowanie z adresu {RemoteIp}.", remoteIp);
                     return Results.Redirect("/login?error=1");
                 }
+                throttle.RegisterSuccess(email);
 
                 // stara sesja z tej przeglądarki (jeśli była) przestaje być ważna
                 sessions.Revoke(context.User.FindFirst(SessionRegistry.SessionClaimType)?.Value);

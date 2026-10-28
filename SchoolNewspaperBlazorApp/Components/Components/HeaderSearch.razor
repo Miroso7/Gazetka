@@ -69,7 +69,8 @@
 @code {
     private sealed record Suggestion(string Text, string Hint, string? Href, string Folded);
 
-    private const int MinLength = 2;
+    // podpowiedzi pojawiają się już od pierwszej litery
+    private const int MinLength = 1;
     private const int MaxSuggestions = 6;
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(2);
 
@@ -151,7 +152,8 @@
     {
         try
         {
-            var articles = await ArticleService.GetAllArticlesAsync();
+            // podpowiadamy tylko artykuły widoczne dla czytelników (opublikowane i niewygasłe)
+            var articles = await ArticleService.GetPublishedArticlesAsync();
             articleEntries = articles
                 .Select(a => new Suggestion(a.Title, a.Type.Label(), $"/article/{a.Id}", SearchText.Fold(a.Title)))
                 .ToList();
@@ -193,10 +195,13 @@
         var words = SearchText.Words(SearchText.Clean(text));
         var source = OnSubstitutions ? substitutionEntries : articleEntries;
 
+        // jedna litera pasuje tylko do słów, które się nią zaczynają (inaczej podpowiedzią byłby prawie każdy tytuł)
+        var singleLetter = words.Length == 1 && words[0].Length == 1;
+
         suggestions = words.Length == 0
             ? new()
             : source
-                .Where(e => words.All(word => e.Folded.Contains(word)))
+                .Where(e => singleLetter ? StartsAnyWord(e.Folded, words[0][0]) : words.All(word => e.Folded.Contains(word)))
                 // najpierw te, które zaczynają się od wpisanego słowa (OrderBy zachowuje dotychczasową kolejność)
                 .OrderBy(e => e.Folded.StartsWith(words[0]) ? 0 : 1)
                 .Take(MaxSuggestions)
@@ -204,6 +209,19 @@
 
         activeIndex = -1;
         open = suggestions.Count > 0;
+    }
+
+    // czy któreś słowo tekstu zaczyna się od podanej litery (słowo zaczyna się na początku tekstu albo po znaku, który nie jest literą ani cyfrą)
+    private static bool StartsAnyWord(string folded, char letter)
+    {
+        for (var i = 0; i < folded.Length; i++)
+        {
+            if (folded[i] == letter && (i == 0 || !char.IsLetterOrDigit(folded[i - 1])))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void OnKeyDown(KeyboardEventArgs e)

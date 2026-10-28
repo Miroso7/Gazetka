@@ -225,3 +225,21 @@ window.avatarCropper = (function() {
 
     return { init: init, apply: apply, chunk: chunk, dispose: dispose };
 })();
+
+// zegar i data w nagłówku (widoczne od 1200 px): odświeżane co sekundę w przeglądarce, bez udziału serwera
+(function() {
+    var timeFormat = new Intl.DateTimeFormat("pl-PL", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    var dateFormat = new Intl.DateTimeFormat("pl-PL", { weekday: "short", day: "numeric", month: "short" });
+
+    function tick() {
+        var now = new Date();
+        var time = document.querySelector("[data-site-clock='time']");
+        var date = document.querySelector("[data-site-clock='date']");
+        if (time) time.textContent = timeFormat.format(now);
+        if (date) date.textContent = dateFormat.format(now);
+    }
+
+    tick();
+    setInterval(tick, 1000);
+    document.addEventListener("DOMContentLoaded", tick);
+})();

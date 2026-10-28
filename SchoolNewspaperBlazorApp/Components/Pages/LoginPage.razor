@@ -34,7 +34,14 @@
         <h1 class="auth__title">Zaloguj się</h1>
         <p class="auth__sub">Użyj konta redakcji, aby wejść do panelu.</p>
 
-        @if (Error == "1")
+        @if (Error == "locked")
+        {
+            <div class="auth-alert" role="alert">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
+                <span>Zbyt wiele nieudanych prób logowania. Spróbuj ponownie za @(Minutes is > 0 and <= 15 ? Minutes : 15) min.</span>
+            </div>
+        }
+        else if (Error == "1")
         {
             <div class="auth-alert" role="alert">
                 <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
@@ -91,6 +98,10 @@
 @code {
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
+
+    // minuty do końca blokady logowania (z adresu /login?error=locked&min=N)
+    [SupplyParameterFromQuery(Name = "min")]
+    public int? Minutes { get; set; }
 
     private ElementReference emailInput;
     private bool showPassword;

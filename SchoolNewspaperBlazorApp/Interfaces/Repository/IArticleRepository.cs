@@ -8,6 +8,8 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Repository
         Task AddArticleAsync(Article article);
         Task<List<Article>> GetAllArticlesAsync();
         Task<List<Article>> GetArticlesByTypeAsync(ArticleType type);
+        // Tylko artykuły widoczne dla czytelników (opublikowane i niewygasłe), przypięte na górze; type = null oznacza wszystkie kategorie.
+        Task<List<Article>> GetPublishedArticlesAsync(ArticleType? type);
         Task<Article> GetArticleByIdAsync(int id);
         // Aktualizuje artykuł oraz jego galerię: dodaje zdjęcia o podanych FileId i usuwa wpisy o podanych Id.
         // Zwraca FileId usuniętych zdjęć (wpisy o plikach oznacza jako usunięte serwis).

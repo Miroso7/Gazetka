@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 using SchoolNewspaperBlazorApp.Data;
 using SchoolNewspaperBlazorApp.Data.Enums;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
@@ -19,13 +20,81 @@ namespace SchoolNewspaperBlazorApp.Service
             _logger = logger;
         }
         private readonly string uploadPath = @"C:\Users\Uczeń2026\source\repos\Gazetka\Images";
+        // podgląd jest mniejszy niż zdjęcie do zapisu (wystarczy na okienko formularza), więc nie obciąża połączenia
+        private const int PreviewDimension = 960;
+
         public async Task<string> GetPreviewAsync(IBrowserFile file)
         {
-            using var stream = file.OpenReadStream(5 * 1024 * 1024);
-            using var memoryStream = new MemoryStream();
-            await stream.CopyToAsync(memoryStream);
-            byte[] bytes = memoryStream.ToArray();
-            return $"data:{file.ContentType};base64,{Convert.ToBase64String(bytes)}";
+            EnsureWithinOriginalLimit(file);
+
+            // GIF zostaje bez zmian (animacja), reszta jest zmniejszana w przeglądarce
+            var isGif = IsGif(file);
+            var source = isGif ? file : await RequestResizedAsync(file, PreviewDimension);
+            var contentType = isGif ? "image/gif" : ResizedFormat(file);
+
+            byte[] bytes = await ReadAllAsync(source, IFileService.MaxStoredImageBytes, isGif);
+            return $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+        }
+
+        public async Task<byte[]> ReadImageAsync(IBrowserFile file)
+        {
+            EnsureWithinOriginalLimit(file);
+
+            // przeglądarka zmniejsza zdjęcie do 1920 px i dopiero zmniejszone idzie na serwer; GIF zostaje bez zmian
+            var isGif = IsGif(file);
+            var source = isGif ? file : await RequestResizedAsync(file, IFileService.MaxImageDimension);
+            return await ReadAllAsync(source, IFileService.MaxStoredImageBytes, isGif);
+        }
+
+        private static void EnsureWithinOriginalLimit(IBrowserFile file)
+        {
+            if (file.Size > IFileService.MaxOriginalImageBytes)
+            {
+                throw new InvalidOperationException("Zdjęcie może mieć maksymalnie 25 MB.");
+            }
+        }
+
+        private static bool IsGif(IBrowserFile file) =>
+            string.Equals(file.ContentType, "image/gif", StringComparison.OrdinalIgnoreCase);
+
+        // format po zmniejszeniu jest ten sam co oryginału (PNG zachowuje przezroczystość), nieznane typy zamieniamy na JPEG
+        private static string ResizedFormat(IBrowserFile file) => file.ContentType?.ToLowerInvariant() switch
+        {
+            "image/png" => "image/png",
+            "image/webp" => "image/webp",
+            _ => "image/jpeg"
+        };
+
+        private async Task<IBrowserFile> RequestResizedAsync(IBrowserFile file, int maxDimension)
+        {
+            try
+            {
+                return await file.RequestImageFileAsync(ResizedFormat(file), maxDimension, maxDimension);
+            }
+            catch (Exception ex) when (ex is JSException or IOException)
+            {
+                _logger.LogWarning(ex, "Przeglądarka nie zmniejszyła zdjęcia {FileName}.", file.Name);
+                throw new InvalidOperationException("Nie udało się odczytać zdjęcia. Wybierz plik JPG, PNG, GIF lub WebP.");
+            }
+        }
+
+        private async Task<byte[]> ReadAllAsync(IBrowserFile file, long maxBytes, bool original)
+        {
+            try
+            {
+                using var stream = file.OpenReadStream(maxBytes);
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                return memoryStream.ToArray();
+            }
+            catch (IOException ex)
+            {
+                // OpenReadStream rzuca IOException, gdy plik przekracza dozwolony rozmiar
+                _logger.LogWarning(ex, "Zdjęcie {FileName} przekracza {MaxMb} MB.", file.Name, maxBytes / (1024 * 1024));
+                throw new InvalidOperationException(original
+                    ? "Animowany GIF może mieć maksymalnie 5 MB."
+                    : "Zdjęcie po zmniejszeniu nadal przekracza 5 MB. Wybierz mniejsze.");
+            }
         }
         private async Task EnsureCanUploadAsync()
         {
@@ -40,11 +109,8 @@ namespace SchoolNewspaperBlazorApp.Service
         public async Task<int> UploadImage(IBrowserFile file)
         {
             await EnsureCanUploadAsync();
-            // wczytujemy plik do pamięci i rozpoznajemy go po zawartości, a nie po nazwie ani typie od przeglądarki
-            using var stream = file.OpenReadStream(5 * 1024 * 1024);
-            using var memoryStream = new MemoryStream();
-            await stream.CopyToAsync(memoryStream);
-            byte[] bytes = memoryStream.ToArray();
+            // plik jest wcześniej zmniejszany w przeglądarce, a rozpoznajemy go po zawartości, nie po nazwie ani typie od przeglądarki
+            byte[] bytes = await ReadImageAsync(file);
 
             return await StoreImageAsync(bytes);
         }

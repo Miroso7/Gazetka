@@ -37,6 +37,28 @@ namespace SchoolNewspaperBlazorApp.Repository
                 .ToListAsync();
         }
 
+        public async Task<List<Article>> GetPublishedArticlesAsync(ArticleType? type)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+
+            var now = DateTime.Now;
+            var query = context.Articles
+                .AsNoTracking()
+                .Where(a => a.PublishDate <= now && (a.ExpiresAt == null || a.ExpiresAt > now));
+
+            if (type is { } t)
+            {
+                query = query.Where(a => a.Type == t);
+            }
+
+            // przypięte na górze, w obrębie grup od najnowszych
+            return await query
+                .OrderByDescending(a => a.IsPinned)
+                .ThenByDescending(a => a.PublishDate)
+                .ThenByDescending(a => a.Id)
+                .ToListAsync();
+        }
+
         public async Task<List<Article>> GetArticlesByTypeAsync(ArticleType type)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
@@ -72,13 +94,16 @@ namespace SchoolNewspaperBlazorApp.Repository
                 throw new Exception($"Article with ID {article.Id} not found.");
             }
 
-            // aktualizujemy tylko edytowalne pola (data publikacji zostaje)
+            // aktualizujemy tylko edytowalne pola
             existing.Title = article.Title;
             existing.Text = article.Text;
             existing.Author = article.Author;
             existing.Type = article.Type;
             existing.Details = article.Details;
             existing.FileId = article.FileId;
+            existing.PublishDate = article.PublishDate;
+            existing.ExpiresAt = article.ExpiresAt;
+            existing.IsPinned = article.IsPinned;
 
             // galeria: usuwamy (soft delete) tylko zdjęcia tego artykułu
             var removedFileIds = new List<int>();

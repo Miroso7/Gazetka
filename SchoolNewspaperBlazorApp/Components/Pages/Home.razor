@@ -1,10 +1,13 @@
 ﻿@page "/"
 @using System.Text.RegularExpressions
+@using Microsoft.Extensions.Logging
 @using SchoolNewspaperBlazorApp.Components.Components
 @using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
+@implements IDisposable
 @inject IArticleService articleService
+@inject ILogger<Home> logger
 
 <section class="hero">
     <div class="hero__content">
@@ -62,8 +65,8 @@
 
 <section class="news-zone">
     <div class="section-head" id="aktualnosci">
-        <h2 class="section-title">@(searching ? "Wyniki wyszukiwania" : selectedType?.Label() ?? "Aktualności")</h2>
-        <p class="section-sub">@(searching ? ResultsSummary() : selectedType?.Description() ?? "Najnowsze artykuły z życia szkoły")</p>
+        <h2 class="section-title">@(searching ? "Wyniki wyszukiwania" : filteringAuthor ? "Artykuły autora" : selectedType?.Label() ?? "Aktualności")</h2>
+        <p class="section-sub">@(searching || filteringAuthor ? ResultsSummary() : selectedType?.Description() ?? "Najnowsze artykuły z życia szkoły")</p>
     </div>
 
     <nav class="type-tabs" aria-label="Kategorie artykułów">
@@ -77,6 +80,15 @@
             }
         </div>
     </nav>
+
+    @if (filteringAuthor)
+    {
+        <div class="search-chip author-chip" role="status">
+            <svg class="search-chip__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+            <span class="search-chip__text">Artykuły autora: <strong>@authorFilter</strong></span>
+            <a class="search-chip__clear" href="@BuildHref(selectedType, searching, withAuthor: false)">Wyczyść</a>
+        </div>
+    }
 
     @if (searching)
     {
@@ -156,6 +168,10 @@
     [SupplyParameterFromQuery(Name = "q")]
     public string? SearchQuery { get; set; }
 
+    // autor z linku „Więcej artykułów autora”, np. /?autor=Jan%20Kowalski (pokazujemy tylko jego artykuły)
+    [SupplyParameterFromQuery(Name = "autor")]
+    public string? AuthorQuery { get; set; }
+
     // numer strony i liczba artykułów na stronie, np. /?strona=2&na=20 (brak = pierwsza strona, 10 artykułów)
     [SupplyParameterFromQuery(Name = "strona")]
     public int? PageQuery { get; set; }
@@ -180,6 +196,13 @@
     private string searchTerm = "";
     private bool searching => searchTerm.Length > 0;
 
+    private string authorFilter = "";
+    private bool filteringAuthor => authorFilter.Length > 0;
+
+    // lista odświeża się sama co minutę: zaplanowane artykuły pojawiają się, a wygasłe znikają bez przeładowania strony
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(1);
+    private CancellationTokenSource? refreshCts;
+
     private static readonly Regex PhotoMarker = new(@"\[foto:\d+\]", RegexOptions.Compiled);
 
     // skróty w sekcji powitalnej
@@ -191,18 +214,73 @@
             ? type
             : null;
 
-        var source = selectedType is { } t
-            ? await articleService.GetArticlesByTypeAsync(t)
-            : await articleService.GetAllArticlesAsync();
-
         searchTerm = SearchText.Clean(SearchQuery);
+        authorFilter = SearchText.Clean(AuthorQuery);
+        pageSize = PageSizeQuery is { } size && PageSizes.Contains(size) ? size : DefaultPageSize;
+
+        await LoadArticlesAsync();
+    }
+
+    // czytelnicy widzą tylko opublikowane i niewygasłe artykuły (przypięte są na górze)
+    private async Task LoadArticlesAsync()
+    {
+        var source = await articleService.GetPublishedArticlesAsync(selectedType);
+
+        if (filteringAuthor)
+        {
+            source = source
+                .Where(a => string.Equals(a.Author?.Trim(), authorFilter, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
 
         articles = searching ? Filter(source, searchTerm) : source;
 
-        pageSize = PageSizeQuery is { } size && PageSizes.Contains(size) ? size : DefaultPageSize;
         totalPages = Math.Max(1, (int)Math.Ceiling(articles.Count / (double)pageSize));
         page = Math.Clamp(PageQuery ?? 1, 1, totalPages);
         pageArticles = articles.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+    }
+
+    // OnAfterRender działa dopiero w otwartym obwodzie (nie przy prerenderze), więc timer startuje raz
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        refreshCts = new CancellationTokenSource();
+        _ = RefreshLoopAsync(refreshCts.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(RefreshInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadArticlesAsync();
+                        StateHasChanged();
+                    });
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // kolejna próba za minutę, a lista zostaje taka, jaka była
+                    logger.LogWarning(ex, "Nie udało się odświeżyć listy artykułów.");
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // strona została zamknięta
+        }
+    }
+
+    public void Dispose()
+    {
+        refreshCts?.Cancel();
+        refreshCts?.Dispose();
     }
 
     // wszystkie słowa z frazy muszą wystąpić w tytule, treści lub autorze (bez rozróżniania wielkości liter i polskich znaków)
@@ -217,10 +295,12 @@
 
     // adres zakładki; withSearch zachowuje frazę, żeby dało się zawęzić wyniki do kategorii
     // zmiana zakładki lub frazy wraca na pierwszą stronę, ale zachowuje wybraną liczbę artykułów na stronie
-    private string BuildHref(ArticleType? type, bool withSearch, int targetPage = 1, int? size = null)
+    // filtr autora zostaje przy zmianie zakładki i strony, dopóki nie zostanie wyczyszczony (withAuthor: false)
+    private string BuildHref(ArticleType? type, bool withSearch, int targetPage = 1, int? size = null, bool withAuthor = true)
     {
         var parts = new List<string>();
         if (type is { } t) parts.Add($"typ={t}");
+        if (withAuthor && filteringAuthor) parts.Add($"autor={Uri.EscapeDataString(authorFilter)}");
         if (withSearch && searching) parts.Add($"q={Uri.EscapeDataString(searchTerm)}");
         var targetSize = size ?? pageSize;
         if (targetSize != DefaultPageSize) parts.Add($"na={targetSize}");
@@ -235,7 +315,8 @@
         var few = n % 10 is >= 2 and <= 4 && n % 100 is not (>= 12 and <= 14);
         var word = n == 1 ? "wynik" : few ? "wyniki" : "wyników";
         var scope = selectedType is { } t ? $" w kategorii {t.Label()}" : "";
-        return $"{n} {word}{scope}";
+        var byAuthor = filteringAuthor ? $", autor: {authorFilter}" : "";
+        return $"{n} {word}{scope}{byAuthor}";
     }
 
     // numery stron do pokazania (0 = przerwa „…”): pierwsza, ostatnia i najbliższe bieżącej
@@ -261,5 +342,7 @@
 
     private string EmptyMessage => searching
         ? $"Brak wyników dla „{searchTerm}”. Spróbuj innych słów kluczowych."
-        : selectedType?.EmptyText() ?? "Nie ma jeszcze żadnych artykułów.";
+        : filteringAuthor
+            ? $"Brak artykułów autora „{authorFilter}”."
+            : selectedType?.EmptyText() ?? "Nie ma jeszcze żadnych artykułów.";
 }

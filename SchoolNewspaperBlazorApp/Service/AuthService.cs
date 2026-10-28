@@ -185,6 +185,35 @@ namespace SchoolNewspaperBlazorApp.Service
             _logger.LogInformation("Użytkownik {UserId} {Action} zdjęcie profilowe.", myId, image is null ? "usunął" : "zmienił");
         }
 
+        public async Task RemoveUserAvatarAsync(int userId)
+        {
+            var myId = await _permissionService.GetMyUserIdAsync();
+            if (myId == 0 || !await _permissionService.HasPermissionAsync(EnumPermissions.Master))
+            {
+                _logger.LogWarning("Odmowa usunięcia zdjęcia profilowego użytkownika {TargetUserId}: tylko master może to zrobić.", userId);
+                throw new UnauthorizedAccessException("Tylko master może usuwać zdjęcia profilowe innych użytkowników.");
+            }
+
+            var profile = await _authRepository.GetProfileAsync(userId);
+            if (profile is null)
+            {
+                throw new InvalidOperationException("Nie znaleziono użytkownika.");
+            }
+
+            if (profile.AvatarFileName is null)
+            {
+                throw new InvalidOperationException("Ten użytkownik nie ma zdjęcia profilowego.");
+            }
+
+            // to samo co przy własnym zdjęciu: konto traci zdjęcie, a plik jest oznaczany jako usunięty (zostaje na dysku)
+            if (!await _authRepository.SetAvatarAsync(userId, null))
+            {
+                throw new InvalidOperationException("Nie znaleziono użytkownika.");
+            }
+
+            _logger.LogInformation("Master {UserId} usunął zdjęcie profilowe użytkownika {TargetUserId}.", myId, userId);
+        }
+
         public async Task<Dictionary<string, string>> GetAuthorAvatarUrlsAsync(IEnumerable<string> authors)
         {
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

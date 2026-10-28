@@ -253,6 +253,25 @@ else
                                             <p class="a-row__text">@a.Text</p>
                                             <span class="a-row__author">@a.Author</span>
                                             <span class="type-chip type-chip--@a.Type.CssName()">@a.Type.Label()</span>
+                                            @if (a.IsPinned)
+                                            {
+                                                <span class="state-chip state-chip--pinned" title="Artykuł jest przypięty na górze listy">Przypięty</span>
+                                            }
+                                            @if (a.PublishDate > DateTime.Now)
+                                            {
+                                                <span class="state-chip state-chip--from" title="Zaplanowana publikacja: do tego czasu artykuł widzi tylko redakcja">Od @StateDate(a.PublishDate)</span>
+                                            }
+                                            @if (a.ExpiresAt is { } expires)
+                                            {
+                                                if (expires <= DateTime.Now)
+                                                {
+                                                    <span class="state-chip state-chip--expired" title="Artykuł zniknął z listy i wyszukiwarki, ale link nadal działa">Wygasł @StateDate(expires)</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="state-chip state-chip--until" title="Po tej dacie artykuł zniknie z listy i wyszukiwarki">Do @StateDate(expires)</span>
+                                                }
+                                            }
                                         </div>
                                         <div class="a-row__actions">
                                             <a class="icon-btn" href="/article/@a.Id" target="_blank" rel="noopener"
@@ -520,6 +539,9 @@ else
         }
     }
 
+    // data i godzina w znacznikach stanu artykułu
+    private static string StateDate(DateTime value) => value.ToString("dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+
     private static bool Has(string? source, string query) =>
         source?.Contains(query, StringComparison.CurrentCultureIgnoreCase) ?? false;
 
@@ -584,7 +606,7 @@ else
 
     private string ViewSub => view switch
     {
-        1 => "Wyszukuj, podglądaj, edytuj i usuwaj opublikowane artykuły.",
+        1 => "Wyszukuj, podglądaj, edytuj i usuwaj artykuły (także zaplanowane i wygasłe).",
         2 => editingArticle is null ? "Napisz artykuł i dodaj do niego zdjęcie." : "Zmień tytuł, treść, autora lub zdjęcie artykułu.",
         3 => "Utwórz konto dla nowego użytkownika.",
         4 => "Nadawaj i odbieraj uprawnienia użytkownikom panelu.",

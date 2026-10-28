@@ -26,11 +26,13 @@ namespace SchoolNewspaperBlazorApp.Service
             _logger = logger;
         }
         public async Task AddArticleAsync(string title, string text, string author, ArticleType type, int fileId, IReadOnlyList<int>? galleryFileIds = null,
-            IReadOnlyDictionary<string, string>? details = null)
+            IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.AddArticle);
             ValidateArticleFields(title, text);
             ValidateType(type);
+            var publishDate = publishAt ?? DateTime.Now;
+            ValidateSchedule(publishDate, expiresAt);
             var detailsJson = ArticleFields.ToJson(type, details);
             var gallery = galleryFileIds ?? Array.Empty<int>();
             ValidateGalleryCount(gallery.Count);
@@ -39,7 +41,9 @@ namespace SchoolNewspaperBlazorApp.Service
                 Title = title.Trim(),
                 Text = text.Trim(),
                 Author = author?.Trim() ?? string.Empty,
-                PublishDate = DateTime.Now,
+                PublishDate = publishDate,
+                ExpiresAt = expiresAt,
+                IsPinned = isPinned,
                 Type = type,
                 Details = detailsJson,
                 FileId = fileId,
@@ -57,7 +61,11 @@ namespace SchoolNewspaperBlazorApp.Service
         {
             return await _articleRepository.GetArticlesByTypeAsync(type);
         }
-        public async Task<Article> GetArticleByIdAsync(int id)
+        public async Task<List<Article>> GetPublishedArticlesAsync(ArticleType? type = null)
+        {
+            return await _articleRepository.GetPublishedArticlesAsync(type);
+        }
+        public async Task<Article?> GetArticleByIdAsync(int id)
         {
             Article article = await _articleRepository.GetArticleByIdAsync(id);
             if (article == null)
@@ -65,7 +73,23 @@ namespace SchoolNewspaperBlazorApp.Service
                 _logger.LogWarning("Nie znaleziono artykułu {ArticleId}.", id);
                 throw new Exception($"Article with ID {id} not found.");
             }
+
+            // zaplanowany artykuł pod bezpośrednim linkiem widzi tylko redakcja (wygasły otwiera się normalnie)
+            if (article.PublishDate > DateTime.Now && !await CanSeeUnpublishedAsync())
+            {
+                _logger.LogDebug("Artykuł {ArticleId} jest zaplanowany, a użytkownik nie należy do redakcji.", id);
+                return null;
+            }
             return article;
+        }
+        // Redakcja: każdy, kto może dodawać, edytować lub usuwać artykuły (albo jest masterem).
+        private async Task<bool> CanSeeUnpublishedAsync()
+        {
+            var mine = await _permissionService.GetMyPermissionsAsync();
+            return mine.Contains(EnumPermissions.AddArticle)
+                || mine.Contains(EnumPermissions.EditArticle)
+                || mine.Contains(EnumPermissions.DeleteArticle)
+                || mine.Contains(EnumPermissions.Master);
         }
         public async Task<List<ArticleImageDto>> GetArticleImagesAsync(int articleId)
         {
@@ -73,7 +97,7 @@ namespace SchoolNewspaperBlazorApp.Service
         }
         public async Task UpdateArticleAsync(int id, string title, string text, string author, ArticleType type, int fileId,
             IReadOnlyList<int>? addedFileIds = null, IReadOnlyList<int>? removedImageIds = null,
-            IReadOnlyDictionary<string, string>? details = null)
+            IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.EditArticle);
             if (id <= 0)
@@ -82,6 +106,12 @@ namespace SchoolNewspaperBlazorApp.Service
             }
             ValidateArticleFields(title, text);
             ValidateType(type);
+
+            // brak daty „Opublikuj od” zostawia dotychczasową datę publikacji; zaplanowany artykuł z wyczyszczoną datą publikuje się od razu
+            var existing = await _articleRepository.GetArticleByIdAsync(id);
+            var now = DateTime.Now;
+            var publishDate = publishAt ?? (existing.PublishDate > now ? now : existing.PublishDate);
+            ValidateSchedule(publishDate, expiresAt);
             var detailsJson = ArticleFields.ToJson(type, details);
 
             var added = addedFileIds ?? Array.Empty<int>();
@@ -92,13 +122,16 @@ namespace SchoolNewspaperBlazorApp.Service
                 ValidateGalleryCount(Math.Max(0, current - removed.Count) + added.Count);
             }
 
-            // data publikacji zostaje bez zmian (repozytorium aktualizuje tylko pola poniżej)
+            // repozytorium aktualizuje tylko pola poniżej
             var article = new Article
             {
                 Id = id,
                 Title = title.Trim(),
                 Text = text.Trim(),
                 Author = author?.Trim() ?? string.Empty,
+                PublishDate = publishDate,
+                ExpiresAt = expiresAt,
+                IsPinned = isPinned,
                 Type = type,
                 Details = detailsJson,
                 FileId = fileId
@@ -137,6 +170,14 @@ namespace SchoolNewspaperBlazorApp.Service
             if (!Enum.IsDefined(type))
             {
                 throw new InvalidOperationException("Wybierz kategorię artykułu.");
+            }
+        }
+        // „Wyświetlaj do” musi wypadać po „Opublikuj od”, inaczej artykuł nigdy nie byłby widoczny.
+        private static void ValidateSchedule(DateTime publishDate, DateTime? expiresAt)
+        {
+            if (expiresAt is { } end && end <= publishDate)
+            {
+                throw new InvalidOperationException("Data „Wyświetlaj do” musi być późniejsza niż „Opublikuj od”.");
             }
         }
         private static void ValidateGalleryCount(int count)

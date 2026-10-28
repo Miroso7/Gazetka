@@ -18,7 +18,7 @@
         var isNewest = !permissions && FirstPage && Articles.Count > 1 && article.Id == newestId;
 
         <article @key="article.Id"
-                 class="article-card article-card--@article.Type.CssName() @(featured ? "article-card--featured" : "") @(permissions ? "article-card--admin" : "")"
+                 class="article-card article-card--@article.Type.CssName() @(featured ? "article-card--featured" : "") @(permissions ? "article-card--admin" : "") @(article.IsPinned ? "article-card--pinned" : "")"
                  style="--i:@Math.Min(i, 8)">
 
             <div class="article-card__img-wrap">
@@ -40,6 +40,14 @@
                 @if (isNewest)
                 {
                     <span class="article-card__badge">Nowe</span>
+                }
+
+                @if (article.IsPinned)
+                {
+                    <span class="article-card__pin">
+                        <svg class="article-card__pin-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z" /></svg>
+                        Przypięte
+                    </span>
                 }
             </div>
 

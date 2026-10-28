@@ -58,17 +58,21 @@
                 @foreach (var u in items)
                 {
                     <li class="perm-row" @key="u.UserId">
-                        <div class="perm-row__user">
-                            @if (u.FullName.Length > 0)
-                            {
-                                <span class="perm-row__name">@u.FullName</span>
-                                <span class="perm-row__email">@u.Email · @u.Role.Label()</span>
-                            }
-                            else
-                            {
-                                <span class="perm-row__name">@u.Email</span>
-                                <span class="perm-row__email">@u.Role.Label()</span>
-                            }
+                        <div class="perm-row__user perm-row__user--avatar">
+                            @* zdjęcie profilowe użytkownika, a gdy go nie ma – inicjały *@
+                            <AuthorAvatar Name="@u.DisplayName" Url="@u.AvatarUrl" Class="perm-row__avatar" />
+                            <div class="perm-row__ident">
+                                @if (u.FullName.Length > 0)
+                                {
+                                    <span class="perm-row__name">@u.FullName</span>
+                                    <span class="perm-row__email">@u.Email · @u.Role.Label()</span>
+                                }
+                                else
+                                {
+                                    <span class="perm-row__name">@u.Email</span>
+                                    <span class="perm-row__email">@u.Role.Label()</span>
+                                }
+                            </div>
                         </div>
                         <div class="perm-row__chips">
                             @foreach (var p in PermissionInfo.All)
@@ -87,6 +91,10 @@
                         <div class="perm-row__actions">
                             <button type="button" class="link-btn" @onclick="() => GrantAllAsync(u)">Nadaj wszystkie</button>
                             <button type="button" class="link-btn" @onclick="() => OpenEdit(u)">Edytuj dane</button>
+                            @if (viewerIsMaster && u.AvatarFileName is not null)
+                            {
+                                <button type="button" class="link-btn link-btn--danger" @onclick="() => pendingAvatarRemoval = u">Usuń zdjęcie</button>
+                            }
                             @if (u.IsMaster)
                             {
                                 <span class="perm-row__badge">Master</span>
@@ -152,6 +160,26 @@
     </div>
 }
 
+@if (pendingAvatarRemoval != null)
+{
+    <div class="confirm">
+        <div class="confirm__scrim" @onclick="CancelAvatarRemoval"></div>
+        <div class="confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-avatar-title">
+            <div class="confirm__icon">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" /></svg>
+            </div>
+            <h2 id="confirm-avatar-title" class="confirm__title">Usunąć zdjęcie profilowe?</h2>
+            <p class="confirm__text">Zdjęcie użytkownika „@pendingAvatarRemoval.DisplayName” zostanie usunięte, a zamiast niego pojawią się inicjały. Użytkownik może potem dodać nowe zdjęcie w zakładce „Moje konto”.</p>
+            <div class="confirm__actions">
+                <button type="button" class="btn btn-outline-primary" @onclick="CancelAvatarRemoval" disabled="@removingAvatar">Anuluj</button>
+                <button type="button" class="btn btn-danger-solid" @onclick="ConfirmAvatarRemovalAsync" disabled="@removingAvatar">
+                    @(removingAvatar ? "Usuwanie..." : "Usuń zdjęcie")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @if (pendingDelete != null)
 {
     <div class="confirm">
@@ -186,6 +214,11 @@
     private UserWithPermissions? pendingDelete;
     private bool deleting;
 
+    // usuwanie cudzego zdjęcia profilowego: tylko master (serwer sprawdza to jeszcze raz)
+    private bool viewerIsMaster;
+    private UserWithPermissions? pendingAvatarRemoval;
+    private bool removingAvatar;
+
     // edycja danych użytkownika (imię, nazwisko, e-mail, rola) – hasła nie da się zmienić
     private UserWithPermissions? editing;
     private string editFirstName = "";
@@ -211,6 +244,7 @@
         loading = true;
         try
         {
+            viewerIsMaster = await PermissionService.HasPermissionAsync(EnumPermissions.Master);
             users = await PermissionService.GetUsersWithPermissionsAsync();
         }
         catch (UnauthorizedAccessException ex)
@@ -301,6 +335,43 @@
         finally
         {
             saving = false;
+        }
+    }
+
+    private void CancelAvatarRemoval()
+    {
+        if (!removingAvatar) pendingAvatarRemoval = null;
+    }
+
+    private async Task ConfirmAvatarRemovalAsync()
+    {
+        if (pendingAvatarRemoval is null) return;
+
+        var user = pendingAvatarRemoval;
+        removingAvatar = true;
+        error = info = null;
+        try
+        {
+            await AuthService.RemoveUserAvatarAsync(user.UserId);
+            // zamiast zdjęcia od razu pojawiają się inicjały
+            user.AvatarFileName = null;
+            info = $"Usunięto zdjęcie profilowe użytkownika {user.DisplayName}.";
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
+        {
+            error = ex.Message;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Nie udało się usunąć zdjęcia profilowego użytkownika {UserId}.", user.UserId);
+            error = "Nie udało się usunąć zdjęcia. Spróbuj ponownie.";
+            await LoadAsync();
+        }
+        finally
+        {
+            removingAvatar = false;
+            pendingAvatarRemoval = null;
         }
     }
 

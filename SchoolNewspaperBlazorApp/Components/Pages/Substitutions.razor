@@ -1,9 +1,12 @@
 ﻿@page "/zastepstwa"
 @using System.Globalization
+@using Microsoft.Extensions.Logging
 @using SchoolNewspaperBlazorApp.Components.Components
 @using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Interfaces.Service
+@implements IDisposable
 @inject ISubstitutionService substitutionService
+@inject ILogger<Substitutions> logger
 
 <PageTitle>Zastępstwa · Portal szkolny</PageTitle>
 
@@ -22,6 +25,10 @@
             @if (date == DateTime.Today)
             {
                 <span class="subst-chip subst-chip--sub">Dziś</span>
+            }
+            else if (date == DateTime.Today.AddDays(1))
+            {
+                <span class="subst-chip subst-chip--sub">Jutro</span>
             }
         </div>
         <button type="button" class="icon-btn" aria-label="Następny dzień" @onclick="() => ShiftDayAsync(1)">
@@ -49,6 +56,10 @@
         @if (date != DateTime.Today)
         {
             <button type="button" class="btn btn-sm btn-outline-primary" @onclick="TodayAsync">Dziś</button>
+        }
+        @if (date != DateTime.Today.AddDays(1))
+        {
+            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="TomorrowAsync">Jutro</button>
         }
     </div>
 </div>
@@ -110,12 +121,18 @@ else
         await LoadAsync();
     }
 
-    private async Task LoadAsync()
+    // silent = odświeżenie w tle: bez szkieletu ładowania, żeby lista nie migała co minutę
+    private async Task LoadAsync(bool silent = false)
     {
-        loading = true;
+        if (!silent) loading = true;
         try
         {
-            items = await substitutionService.GetSubstitutionsAsync(date);
+            var requested = date;
+            var loaded = await substitutionService.GetSubstitutionsAsync(requested);
+            // użytkownik zmienił dzień w trakcie odświeżania w tle: stare dane nie mogą nadpisać nowych
+            if (silent && requested != date) return;
+
+            items = loaded;
             // filtr z poprzedniego dnia nie może ukryć wszystkich wpisów nowego dnia
             if (!ClassOptions.Any(c => c.Id.ToString() == classFilter)) classFilter = "";
             if (!TeacherOptions.Any(t => t.Id.ToString() == teacherFilter)) teacherFilter = "";
@@ -124,6 +141,53 @@ else
         {
             loading = false;
         }
+    }
+
+    // zastępstwa odświeżają się same co minutę (nowe wpisy pojawiają się bez przeładowania strony)
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(1);
+    private CancellationTokenSource? refreshCts;
+
+    // OnAfterRender działa dopiero w otwartym obwodzie (nie przy prerenderze), więc timer startuje raz
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        refreshCts = new CancellationTokenSource();
+        _ = RefreshLoopAsync(refreshCts.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(RefreshInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadAsync(silent: true);
+                        StateHasChanged();
+                    });
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // kolejna próba za minutę, a tabela zostaje taka, jaka była
+                    logger.LogWarning(ex, "Nie udało się odświeżyć zastępstw.");
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // strona została zamknięta
+        }
+    }
+
+    public void Dispose()
+    {
+        refreshCts?.Cancel();
+        refreshCts?.Dispose();
     }
 
     private async Task ShiftDayAsync(int days)
@@ -135,6 +199,12 @@ else
     private async Task TodayAsync()
     {
         date = DateTime.Today;
+        await LoadAsync();
+    }
+
+    private async Task TomorrowAsync()
+    {
+        date = DateTime.Today.AddDays(1);
         await LoadAsync();
     }
 
