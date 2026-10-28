@@ -306,3 +306,83 @@ window.avatarCropper = (function() {
     setInterval(tick, 1000);
     document.addEventListener("DOMContentLoaded", tick);
 })();
+
+// kadr głównego zdjęcia w formularzu artykułu: zdjęcie przeciąga się myszą, palcem albo strzałkami, a po puszczeniu
+// wynik (punkt ostrości w procentach) wraca do Blazora; w trakcie przeciągania zdjęciem rusza tylko przeglądarka
+window.focusPicker = (function() {
+    var states = new WeakMap();
+
+    function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+    }
+
+    // ile pikseli zdjęcia wystaje poza pole (zdjęcie jest przycinane po jednej osi, więc na drugiej jest 0)
+    function overflow(image) {
+        var width = image.clientWidth, height = image.clientHeight;
+        var naturalWidth = image.naturalWidth, naturalHeight = image.naturalHeight;
+        if (!width || !height || !naturalWidth || !naturalHeight) return { x: 0, y: 0 };
+        var scale = Math.max(width / naturalWidth, height / naturalHeight);
+        return { x: Math.max(0, naturalWidth * scale - width), y: Math.max(0, naturalHeight * scale - height) };
+    }
+
+    function read(image) {
+        var match = (image.style.objectPosition || "").match(/(-?[\d.]+)%\s+(-?[\d.]+)%/);
+        return match ? { x: parseFloat(match[1]), y: parseFloat(match[2]) } : { x: 50, y: 50 };
+    }
+
+    function init(viewport, dotNet) {
+        if (!viewport || !dotNet || states.has(viewport)) return;
+        var image = viewport.querySelector("img");
+        if (!image) return;
+        states.set(viewport, true);
+
+        var drag = null;
+
+        function show(x, y) {
+            image.style.objectPosition = Math.round(x) + "% " + Math.round(y) + "%";
+        }
+
+        function send() {
+            var position = read(image);
+            dotNet.invokeMethodAsync("SetFocus", Math.round(position.x), Math.round(position.y));
+        }
+
+        viewport.addEventListener("pointerdown", function(event) {
+            if (event.pointerType === "mouse" && event.button !== 0) return;
+            var position = read(image);
+            drag = { pointerX: event.clientX, pointerY: event.clientY, x: position.x, y: position.y, hidden: overflow(image) };
+            viewport.setPointerCapture(event.pointerId);
+            viewport.classList.add("is-dragging");
+        });
+
+        viewport.addEventListener("pointermove", function(event) {
+            if (!drag) return;
+            // przeciągnięcie zdjęcia w prawo odsłania jego lewą stronę, więc punkt ostrości idzie w przeciwną stronę
+            var x = drag.hidden.x > 0 ? clamp(drag.x - (event.clientX - drag.pointerX) / drag.hidden.x * 100, 0, 100) : drag.x;
+            var y = drag.hidden.y > 0 ? clamp(drag.y - (event.clientY - drag.pointerY) / drag.hidden.y * 100, 0, 100) : drag.y;
+            show(x, y);
+        });
+
+        function finish() {
+            if (!drag) return;
+            drag = null;
+            viewport.classList.remove("is-dragging");
+            send();
+        }
+        viewport.addEventListener("pointerup", finish);
+        viewport.addEventListener("pointercancel", finish);
+
+        viewport.addEventListener("keydown", function(event) {
+            var step = event.shiftKey ? 1 : 5;
+            var moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+            var move = moves[event.key];
+            if (!move) return;
+            event.preventDefault();
+            var position = read(image);
+            show(clamp(position.x + move[0], 0, 100), clamp(position.y + move[1], 0, 100));
+            send();
+        });
+    }
+
+    return { init: init };
+})();

@@ -7101,13 +7101,28 @@ body:has(.preview-overlay) {
     }
 
 /* ---------- Kadr głównego zdjęcia w formularzu artykułu ---------- */
+/* podgląd zdjęcia przeciąga się myszą albo palcem (focusPicker w app.js) */
 .image-preview--focus {
     margin-bottom: .75rem;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
 }
+
+    .image-preview--focus:focus-visible {
+        outline: 3px solid var(--blue);
+        outline-offset: 2px;
+    }
+
+    .image-preview--focus.is-dragging {
+        cursor: grabbing;
+    }
 
     .image-preview--focus img {
         aspect-ratio: 16 / 9;
         max-height: none;
+        pointer-events: none;
+        -webkit-user-drag: none;
     }
 
 .focus-picker {
@@ -7119,27 +7134,12 @@ body:has(.preview-overlay) {
     align-items: center;
     justify-content: space-between;
     gap: .75rem;
-    margin-bottom: .5rem;
 }
 
-.focus-picker__row {
-    display: grid;
-    grid-template-columns: 6.5rem 1fr 3rem;
-    align-items: center;
-    gap: .75rem;
-    margin-bottom: .35rem;
-    font-size: .9rem;
+.focus-picker__hint {
+    font-size: .85rem;
+    line-height: 1.5;
     color: var(--muted);
-}
-
-    .focus-picker__row output {
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-    }
-
-.focus-picker__range {
-    width: 100%;
-    accent-color: var(--blue);
 }
 
 /* ---------- Strona artykułu: główne zdjęcie w stałych proporcjach 16:9 ---------- */

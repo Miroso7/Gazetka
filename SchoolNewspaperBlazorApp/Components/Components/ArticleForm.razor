@@ -25,32 +25,20 @@
 
     @if (previewImage != null)
     {
-        <div class="image-preview image-preview--focus">
-            <img src="@previewImage" alt="zdjęcie" style="object-position: @focusX% @focusY%" />
+        <div class="image-preview image-preview--focus" @ref="focusViewport" tabindex="0" role="group"
+             aria-label="Kadr zdjęcia: przeciągnij zdjęcie albo użyj strzałek">
+            <img src="@previewImage" alt="zdjęcie" style="object-position: @focusX% @focusY%" draggable="false" />
         </div>
 
         <div class="focus-picker">
             <div class="focus-picker__head">
-                <span class="form-label mb-0">Kadr zdjęcia</span>
+                <span class="focus-picker__hint">
+                    Przeciągnij zdjęcie, aby ustawić kadr (albo użyj strzałek). Zdjęcie przesuwa się tylko w tym kierunku, w którym jest przycinane.
+                </span>
                 <button type="button" class="btn btn-sm btn-outline-primary" @onclick="ResetFocus"
                         disabled="@(focusX == 50 && focusY == 50)">
                     Wyśrodkuj
                 </button>
-            </div>
-            <label class="focus-picker__row" for="focus-x">
-                <span>W poziomie</span>
-                <input id="focus-x" type="range" min="0" max="100" step="1" class="focus-picker__range"
-                       @bind="focusX" @bind:event="oninput" />
-                <output>@focusX%</output>
-            </label>
-            <label class="focus-picker__row" for="focus-y">
-                <span>W pionie</span>
-                <input id="focus-y" type="range" min="0" max="100" step="1" class="focus-picker__range"
-                       @bind="focusY" @bind:event="oninput" />
-                <output>@focusY%</output>
-            </label>
-            <div class="form-text mb-3">
-                Zdjęcie jest przycinane na liście artykułów i na górze strony artykułu. Przesuń suwaki, żeby wybrać, który fragment ma zostać widoczny.
             </div>
         </div>
     }
@@ -355,6 +343,10 @@
     // kadr głównego zdjęcia w procentach (50/50 = środek)
     private int focusX = 50;
     private int focusY = 50;
+    // przeciąganie kadru po podglądzie (focusPicker w app.js): przeglądarka rusza zdjęciem, a po puszczeniu odsyła tu wynik
+    private ElementReference focusViewport;
+    private DotNetObjectReference<ArticleForm>? focusRef;
+    private bool focusWired;
     private bool added;
     // każdy nowy błąd przewija stronę do komunikatu (formularz jest długi, a przycisk zapisu na dole)
     private string? errorMessage
@@ -577,6 +569,14 @@
     private void SetChecked(string key, object? value) => details[key] = value is true ? "true" : "";
 
     // inny typ ma inne pola, więc wpisane wartości czyścimy
+    [JSInvokable]
+    public async Task SetFocus(int x, int y)
+    {
+        focusX = Math.Clamp(x, 0, 100);
+        focusY = Math.Clamp(y, 0, 100);
+        await InvokeAsync(StateHasChanged);
+    }
+
     private void ResetFocus()
     {
         focusX = 50;
@@ -833,6 +833,7 @@
     {
         disposed = true;
         draftTimer?.Dispose();
+        focusRef?.Dispose();
     }
 
     private async Task SaveArticleCore()
@@ -973,6 +974,22 @@
                 null,
                 TimeSpan.FromSeconds(DraftAutosaveSeconds),
                 TimeSpan.FromSeconds(DraftAutosaveSeconds));
+        }
+
+        // podgląd zdjęcia pojawia się i znika razem ze zdjęciem, więc przeciąganie podpinamy do niego za każdym razem od nowa
+        if (previewImage is null)
+        {
+            focusWired = false;
+        }
+        else if (!focusWired)
+        {
+            focusWired = true;
+            try
+            {
+                focusRef ??= DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("focusPicker.init", focusViewport, focusRef);
+            }
+            catch (Exception) { }
         }
 
         if (scrollToError && errorMessage is not null)
