@@ -199,9 +199,9 @@
             Zmiany zapiszą się po kliknięciu „@(IsEditing ? "Zapisz zmiany" : "Dodaj")”.
         </div>
 
-        <button type="button" class="btn btn-outline-primary w-100 mb-3" @onclick="() => showPreview = !showPreview"
-                aria-expanded="@(showPreview ? "true" : "false")">
-            @(showPreview ? "Ukryj podgląd" : "Podgląd artykułu")
+        <button type="button" class="btn btn-outline-primary w-100 mb-3" @onclick="OpenPreview"
+                aria-haspopup="dialog">
+            Podgląd artykułu
         </button>
 
         <button type="submit" class="btn btn-primary w-100">@(IsEditing ? "Zapisz zmiany" : "Dodaj")</button>
@@ -214,47 +214,70 @@
 
 @if (showPreview)
 {
-    <div class="article-preview">
-        <span class="article-preview__label">Podgląd – tak artykuł zobaczą czytelnicy</span>
-        <article class="ap">
-            <header class="ap-head">
-                <span class="ap-kicker">@type.Label()</span>
-                <h1 class="ap-title">@(string.IsNullOrWhiteSpace(title) ? "Tytuł artykułu" : title)</h1>
-                <div class="ap-meta">
-                    <div class="ap-meta__text">
-                        <span class="ap-meta__author">@(string.IsNullOrWhiteSpace(author) ? "Autor" : author)</span>
-                        <span class="ap-meta__sub">@PreviewDate.ToString("dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture)</span>
-                    </div>
+    @* podgląd na całym ekranie: otwiera się od razu na widoku, bez zjeżdżania na dół strony; Esc lub „Zamknij” wraca do formularza *@
+    <div class="preview-overlay" role="dialog" aria-modal="true" aria-label="Podgląd artykułu"
+         tabindex="-1" @ref="previewOverlay" @onkeydown="OnPreviewKeyDown">
+        <header class="preview-overlay__bar">
+            <span class="article-preview__label">Podgląd – tak artykuł zobaczą czytelnicy</span>
+            <div class="preview-overlay__modes" role="group" aria-label="Rozmiar podglądu">
+                <button type="button" class="preview-overlay__mode @(previewPhone ? null : "is-active")"
+                        aria-pressed="@(previewPhone ? "false" : "true")" @onclick="() => previewPhone = false">
+                    Komputer
+                </button>
+                <button type="button" class="preview-overlay__mode @(previewPhone ? "is-active" : null)"
+                        aria-pressed="@(previewPhone ? "true" : "false")" @onclick="() => previewPhone = true">
+                    Telefon
+                </button>
+            </div>
+            <button type="button" class="btn btn-primary preview-overlay__close" @onclick="ClosePreview" title="Zamknij (Esc)">
+                Zamknij podgląd
+            </button>
+        </header>
+        <div class="preview-overlay__scroll">
+            <div class="@("preview-overlay__frame" + (previewPhone ? " preview-overlay__frame--phone" : null))">
+                <div class="article-preview">
+                    <article class="ap">
+                        <header class="ap-head">
+                            <span class="ap-kicker">@type.Label()</span>
+                            <h1 class="ap-title">@(string.IsNullOrWhiteSpace(title) ? "Tytuł artykułu" : title)</h1>
+                            <div class="ap-meta">
+                                <div class="ap-meta__text">
+                                    <span class="ap-meta__author">@(string.IsNullOrWhiteSpace(author) ? "Autor" : author)</span>
+                                    <span class="ap-meta__sub">@PreviewDate.ToString("dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture)</span>
+                                </div>
+                            </div>
+                        </header>
+
+                        @if (previewImage != null)
+                        {
+                            <figure class="ap-figure">
+                                <img src="@previewImage" alt="@title" class="ap-figure__img" />
+                            </figure>
+                        }
+
+                        @if (PreviewDetails.Count > 0)
+                        {
+                            <dl class="ap-details">
+                                @foreach (var (label, value) in PreviewDetails)
+                                {
+                                    <div class="ap-details__item">
+                                        <dt>@label</dt>
+                                        <dd>@value</dd>
+                                    </div>
+                                }
+                            </dl>
+                        }
+
+                        <ArticleBody Text="@text" Photos="PreviewPhotos" Title="@title" />
+
+                        @if (photos.Any(p => p.Placement == InlinePlacement.Gallery))
+                        {
+                            <p class="form-text">Pod artykułem pojawi się galeria zdjęć, które nie zostały ułożone w treści.</p>
+                        }
+                    </article>
                 </div>
-            </header>
-
-            @if (previewImage != null)
-            {
-                <figure class="ap-figure">
-                    <img src="@previewImage" alt="@title" class="ap-figure__img" />
-                </figure>
-            }
-
-            @if (PreviewDetails.Count > 0)
-            {
-                <dl class="ap-details">
-                    @foreach (var (label, value) in PreviewDetails)
-                    {
-                        <div class="ap-details__item">
-                            <dt>@label</dt>
-                            <dd>@value</dd>
-                        </div>
-                    }
-                </dl>
-            }
-
-            <ArticleBody Text="@text" Photos="PreviewPhotos" Title="@title" />
-
-            @if (photos.Any(p => p.Placement == InlinePlacement.Gallery))
-            {
-                <p class="form-text">Pod artykułem pojawi się galeria zdjęć, które nie zostały ułożone w treści.</p>
-            }
-        </article>
+            </div>
+        </div>
     </div>
 }
 
@@ -297,6 +320,9 @@
     }
 
     private bool showPreview;
+    private bool previewPhone;
+    private bool focusPreview;
+    private ElementReference previewOverlay;
 
     // numer zdjęcia w galerii (od 1): najpierw zapisane, potem nowe – tak samo jak kolejność na stronie artykułu
     private int NumberOf(PhotoItem photo) => photos.IndexOf(photo) + 1;
@@ -698,6 +724,29 @@
         fileInputKey++; // czyści pole wyboru pliku
         added = true;
         await OnAdded.InvokeAsync();
+    }
+
+    private void OpenPreview()
+    {
+        showPreview = true;
+        focusPreview = true;
+    }
+
+    private void ClosePreview() => showPreview = false;
+
+    private void OnPreviewKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") ClosePreview();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // fokus na podglądzie, żeby Esc działał od razu po otwarciu
+        if (!focusPreview || !showPreview) return;
+        focusPreview = false;
+
+        try { await previewOverlay.FocusAsync(); }
+        catch (Exception) { }
     }
 
     private async Task Cancel()

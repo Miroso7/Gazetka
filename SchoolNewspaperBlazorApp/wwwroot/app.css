@@ -6747,3 +6747,117 @@ body {
     .ap-gallery__grid--one .ap-gallery__cell {
         aspect-ratio: 4 / 3;
     }
+
+/* ---------- Podgląd artykułu w formularzu: pełny ekran ---------- */
+body:has(.preview-overlay) {
+    overflow: hidden; /* tło nie przewija się pod podglądem */
+}
+
+.preview-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1900; /* pod powiększeniem zdjęcia (.lightbox), nad nagłówkiem strony */
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    background: var(--bg);
+    outline: none;
+    animation: lightbox-fade .2s var(--ease);
+}
+
+.preview-overlay__bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .75rem 1rem;
+    padding: max(.75rem, env(safe-area-inset-top)) clamp(1rem, 3vw, 2rem) .75rem;
+    background: var(--white);
+    border-bottom: 1px solid var(--line);
+    box-shadow: var(--shadow-sm);
+}
+
+    .preview-overlay__bar .article-preview__label {
+        margin: 0;
+        margin-right: auto;
+    }
+
+.preview-overlay__modes {
+    display: inline-flex;
+    padding: .2rem;
+    background: var(--blue-soft);
+    border-radius: 999px;
+}
+
+.preview-overlay__mode {
+    padding: .35rem 1rem;
+    font: inherit;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--muted);
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .2s var(--ease), color .2s var(--ease);
+}
+
+    .preview-overlay__mode:hover {
+        color: var(--navy);
+    }
+
+    .preview-overlay__mode.is-active {
+        color: var(--white);
+        background: var(--blue);
+    }
+
+.preview-overlay__scroll {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: clamp(1rem, 3vw, 2.5rem) clamp(.75rem, 3vw, 2rem) 3rem;
+}
+
+.preview-overlay__frame {
+    width: 100%;
+    max-width: 64rem;
+    margin: 0 auto;
+    transition: max-width .3s var(--ease);
+}
+
+/* widok telefonu: wąska ramka, żeby zobaczyć układ na małym ekranie */
+.preview-overlay__frame--phone {
+    max-width: 24rem;
+    padding: .6rem;
+    background: var(--navy);
+    border-radius: 34px;
+    box-shadow: var(--shadow-md);
+}
+
+    .preview-overlay__frame--phone .article-preview .ap {
+        padding: 1.1rem;
+        border-radius: 26px;
+    }
+
+    .preview-overlay__frame--phone .ap-title {
+        font-size: 1.6rem;
+    }
+
+.preview-overlay .article-preview {
+    margin: 0;
+}
+
+    .preview-overlay .article-preview .ap {
+        animation: none;
+    }
+
+@media (max-width: 575.98px) {
+    .preview-overlay__modes {
+        display: none; /* na telefonie podgląd i tak jest w rozmiarze telefonu */
+    }
+
+    .preview-overlay__close {
+        margin-left: auto;
+    }
+
+    .preview-overlay__scroll {
+        padding-inline: .5rem;
+    }
+}

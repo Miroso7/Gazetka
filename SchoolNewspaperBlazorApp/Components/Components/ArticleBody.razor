@@ -29,7 +29,7 @@
 {
     @* powiększenie jednego zdjęcia z tekstu: bez strzałek i miniatur, zamyka się kliknięciem, Esc lub przyciskiem *@
     <div class="lightbox lightbox--single" role="dialog" aria-modal="true" aria-label="Podgląd zdjęcia"
-         tabindex="-1" @ref="overlay" @onkeydown="OnKeyDown" @onclick="Close">
+         tabindex="-1" @ref="overlay" @onkeydown="OnKeyDown" @onkeydown:stopPropagation @onclick="Close">
         <header class="lightbox__bar">
             <button type="button" class="lightbox__btn lightbox__close" @onclick="Close" @onclick:stopPropagation
                     aria-label="Zamknij podgląd" title="Zamknij (Esc)">
