@@ -7,12 +7,10 @@
 @using SchoolNewspaperBlazorApp.Data
 @using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
-@implements IDisposable
 @inject IArticleService ArticleService
 @inject IFileService FileService
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
 @inject ILogger<ArticlePage> Logger
 
 <PageTitle>@(article is null ? "Artykuł" : $"{article.Title} · Portal szkolny")</PageTitle>
@@ -92,16 +90,12 @@ else
                 </div>
 
                 <div class="ap-actions">
-                    <button type="button" class="icon-btn ap-action @(copied ? "is-done" : "")" @onclick="CopyLinkAsync"
-                            aria-label="@(copied ? "Skopiowano link" : "Kopiuj link do artykułu")" title="@(copied ? "Skopiowano!" : "Kopiuj link")">
-                        @if (copied)
-                        {
-                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                        }
-                        else
-                        {
-                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" /><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" /></svg>
-                        }
+                    @* kopiowanie działa w przeglądarce od razu po jednym kliknięciu (app.js, data-copy-link), bez drogi przez serwer *@
+                    <button type="button" class="ap-copy" data-copy-link
+                            aria-label="Kopiuj link do artykułu" title="Kopiuj link do tego artykułu do schowka">
+                        <svg class="ico ap-copy__ico ap-copy__ico--link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" /><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" /></svg>
+                        <svg class="ico ap-copy__ico ap-copy__ico--ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                        <span class="ap-copy__label" aria-live="polite">Kopiuj link</span>
                     </button>
                 </div>
             </div>
@@ -167,10 +161,8 @@ else
     private List<ArticleBodyPhoto> bodyPhotos = new();
     private bool isLoading = true;
     private bool loadFailed;
-    private bool copied;
     private int loadedId = -1;
     private int countedId;
-    private CancellationTokenSource? copiedCts;
 
     private IReadOnlyList<string> Paragraphs { get; set; } = Array.Empty<string>();
     private int WordCount { get; set; }
@@ -263,36 +255,4 @@ else
         }
     }
 
-    private async Task CopyLinkAsync()
-    {
-        try
-        {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Navigation.Uri);
-        }
-        catch (JSException)
-        {
-            return; // brak uprawnień / niebezpieczny kontekst (http) – po cichu pomijamy
-        }
-
-        copied = true;
-        copiedCts?.Cancel();
-        copiedCts = new CancellationTokenSource();
-        var token = copiedCts.Token;
-
-        try
-        {
-            await Task.Delay(2000, token);
-            copied = false;
-        }
-        catch (TaskCanceledException)
-        {
-            // kliknięto ponownie – timer zostanie odświeżony
-        }
-    }
-
-    public void Dispose()
-    {
-        copiedCts?.Cancel();
-        copiedCts?.Dispose();
-    }
 }

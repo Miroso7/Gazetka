@@ -16,6 +16,52 @@ document.addEventListener("dragstart", function(event) {
     if (row && event.dataTransfer.setDragImage) event.dataTransfer.setDragImage(row, 24, 24);
 });
 
+// „Kopiuj link” na stronie artykułu: kopiuje od razu przy pierwszym kliknięciu, w samej przeglądarce (bez drogi przez serwer,
+// bo po niej przeglądarka często odmawia dostępu do schowka). Najpierw metoda synchroniczna, potem nowe API schowka.
+(function() {
+    function copyOld(text) {
+        var area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.top = "0";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        area.setSelectionRange(0, text.length);
+        var ok = false;
+        try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+        document.body.removeChild(area);
+        return ok;
+    }
+
+    function show(button, ok) {
+        var label = button.querySelector(".ap-copy__label");
+        button.classList.toggle("is-done", ok);
+        button.classList.toggle("is-failed", !ok);
+        if (label) label.textContent = ok ? "Skopiowano!" : "Nie udało się skopiować";
+        clearTimeout(button._copyTimer);
+        button._copyTimer = setTimeout(function() {
+            button.classList.remove("is-done", "is-failed");
+            if (label) label.textContent = "Kopiuj link";
+        }, 2000);
+    }
+
+    document.addEventListener("click", function(event) {
+        var button = event.target.closest && event.target.closest("[data-copy-link]");
+        if (!button) return;
+
+        var url = window.location.href;
+        if (copyOld(url)) {
+            show(button, true);
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function() { show(button, true); }, function() { show(button, false); });
+        } else {
+            show(button, false);
+        }
+    });
+})();
+
 // menu na telefonie zamyka się po wybraniu linku lub wysłaniu wyszukiwania (nawigacja bez przeładowania strony zostawiłaby je otwarte)
 (function() {
     function closeNav() {

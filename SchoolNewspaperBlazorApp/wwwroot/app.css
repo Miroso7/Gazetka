@@ -6984,3 +6984,118 @@ body:has(.preview-overlay) {
 .draft-status {
     min-height: 1.25rem;
 }
+
+/* ---------- Strona artykułu: rozmiary zdjęć i przycisk kopiowania ---------- */
+/* główne zdjęcie: wyśrodkowane, nigdy wyższe niż 60% okna ani 30 rem (na dużych ekranach nie rozciąga się na całą szerokość) */
+.ap-figure {
+    max-width: 64rem;
+    margin: 0 auto 2.75rem;
+}
+
+.ap-figure__img {
+    aspect-ratio: 16 / 9;
+    max-height: min(60vh, 30rem);
+    object-fit: cover;
+}
+
+/* zdjęcia w treści: całe widoczne (bez przycinania), w ograniczonej wysokości i szerokości */
+.ap-inline--center {
+    max-width: 44rem;
+}
+
+.ap-inline__img {
+    max-height: min(60vh, 26rem);
+    object-fit: contain;
+    background: var(--blue-soft);
+}
+
+.ap-inline--left .ap-inline__img,
+.ap-inline--right .ap-inline__img {
+    max-height: min(50vh, 16rem);
+}
+
+/* zdjęcia z galerii pod artykułem: stałe proporcje i ograniczona szerokość siatki */
+.ap-gallery__grid {
+    max-width: 72rem;
+    margin-inline: auto;
+}
+
+/* tytuł i wstęp łamią się równo, bez pojedynczych wyrazów w ostatniej linii */
+.ap-title {
+    text-wrap: balance;
+}
+
+.ap-body p {
+    text-wrap: pretty;
+}
+
+/* przycisk „Kopiuj link”: widoczny podpis, żeby było jasne, do czego służy */
+.ap-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem 1rem;
+    font: inherit;
+    font-size: .85rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--blue-dark);
+    white-space: nowrap;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: color .2s var(--ease), background .2s var(--ease), border-color .2s var(--ease), transform .2s var(--ease);
+}
+
+    .ap-copy:hover,
+    .ap-copy:focus-visible {
+        color: var(--blue);
+        background: var(--blue-soft);
+        border-color: var(--blue);
+    }
+
+    .ap-copy:active {
+        transform: scale(.97);
+    }
+
+    .ap-copy .ico {
+        width: 1.05rem;
+        height: 1.05rem;
+        flex: none;
+    }
+
+.ap-copy__ico--ok {
+    display: none;
+}
+
+.ap-copy.is-done {
+    color: var(--white);
+    background: var(--blue);
+    border-color: var(--blue);
+}
+
+    .ap-copy.is-done .ap-copy__ico--link {
+        display: none;
+    }
+
+    .ap-copy.is-done .ap-copy__ico--ok {
+        display: block;
+    }
+
+.ap-copy.is-failed {
+    color: var(--white);
+    background: var(--danger);
+    border-color: var(--danger);
+}
+
+/* galeria z jednym zdjęciem: małe, wyśrodkowane (musi stać po ogólnej regule siatki, żeby ją nadpisać) */
+.ap-gallery__grid--one {
+    max-width: 20rem;
+    margin-inline: auto;
+}
+
+    .ap-gallery__grid--one .ap-gallery__cell {
+        aspect-ratio: 4 / 3;
+    }
