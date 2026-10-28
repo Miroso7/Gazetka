@@ -250,7 +250,7 @@ else
                                         </div>
                                         <div class="a-row__main">
                                             <h3 class="a-row__title">@a.Title</h3>
-                                            <p class="a-row__text">@a.Text</p>
+                                            <p class="a-row__text">@ArticleBodyMarkers.StripMarkers(a.Text)</p>
                                             <span class="a-row__author">@a.Author</span>
                                             <span class="type-chip type-chip--@a.Type.CssName()">@a.Type.Label()</span>
                                             @if (a.IsPinned)

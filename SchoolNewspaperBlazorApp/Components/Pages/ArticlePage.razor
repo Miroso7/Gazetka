@@ -127,7 +127,7 @@ else
             </dl>
         }
 
-        <ArticleBody Text="@article.Text" Photos="@(galleryImages.Select(i => i.Url).ToList())" Title="@article.Title" />
+        <ArticleBody Text="@article.Text" Photos="bodyPhotos" Title="@article.Title" />
 
         <ArticleGallery Images="remainingGalleryImages" Title="@article.Title" />
 
@@ -162,8 +162,9 @@ else
     // zdjęcie profilowe autora (null = podpis pokaże inicjały)
     private string? authorAvatarUrl;
     private List<ArticleImageDto> galleryImages = new();
-    // zdjęcia wstawione w treść ([foto:N]) nie powtarzają się w galerii pod artykułem
+    // zdjęcia ułożone w treści nie powtarzają się w galerii pod artykułem
     private List<ArticleImageDto> remainingGalleryImages = new();
+    private List<ArticleBodyPhoto> bodyPhotos = new();
     private bool isLoading = true;
     private bool loadFailed;
     private bool copied;
@@ -202,6 +203,7 @@ else
         authorAvatarUrl = null;
         galleryImages = new();
         remainingGalleryImages = new();
+        bodyPhotos = new();
 
         try
         {
@@ -229,14 +231,15 @@ else
                     Logger.LogWarning(ex, "Nie udało się wczytać zdjęcia profilowego autora artykułu {ArticleId}.", article.Id);
                 }
 
-                var parts = ArticleBodyMarkers.Split(article.Text);
-                var used = ArticleBodyMarkers.UsedPhotos(parts);
+                bodyPhotos = galleryImages.Select(i => new ArticleBodyPhoto(i.Url, i.Placement, i.InlineAfter)).ToList();
+                var blocks = ArticleBodyMarkers.Layout(article.Text, bodyPhotos);
+                var used = blocks.Where(b => b.Photo is not null).Select(b => b.Photo!.Value).ToHashSet();
                 remainingGalleryImages = galleryImages
-                    .Where((_, index) => !used.Contains(index + 1))
+                    .Where((_, index) => !used.Contains(index))
                     .ToList();
 
-                // markery zdjęć nie wchodzą do opisu strony ani do liczby słów
-                Paragraphs = parts.Where(p => p.Text is not null).Select(p => p.Text!).ToList();
+                // zdjęcia nie wchodzą do opisu strony ani do liczby słów
+                Paragraphs = blocks.Where(b => b.Text is not null).Select(b => b.Text!).ToList();
                 WordCount = Paragraphs.Sum(p => p.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length);
             }
         }

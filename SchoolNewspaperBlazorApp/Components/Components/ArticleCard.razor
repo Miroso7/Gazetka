@@ -59,7 +59,7 @@
                     }
                     <span class="article-card__read">
                         <svg class="article-card__read-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                        @ReadMinutes(article.Text) min czytania
+                        @ReadMinutes(ArticleBodyMarkers.StripMarkers(article.Text)) min czytania
                     </span>
                 </div>
 
@@ -74,7 +74,7 @@
                     }
                 </h3>
 
-                <p class="article-card__text">@Excerpt(article.Text)</p>
+                <p class="article-card__text">@Excerpt(ArticleBodyMarkers.StripMarkers(article.Text))</p>
 
                 @if (permissions)
                 {

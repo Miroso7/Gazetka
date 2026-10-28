@@ -26,7 +26,8 @@ namespace SchoolNewspaperBlazorApp.Service
             _logger = logger;
         }
         public async Task AddArticleAsync(string title, string text, string author, ArticleType type, int fileId, IReadOnlyList<int>? galleryFileIds = null,
-            IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null)
+            IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null,
+            IReadOnlyList<ArticleImagePlacement>? galleryPlacements = null)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.AddArticle);
             ValidateArticleFields(title, text);
@@ -48,7 +49,11 @@ namespace SchoolNewspaperBlazorApp.Service
                 Details = detailsJson,
                 FileId = fileId,
                 // artykuł i jego galeria zapisują się razem, w jednej transakcji
-                Images = gallery.Select(galleryFileId => new ArticleImage { FileId = galleryFileId }).ToList()
+                Images = gallery.Select((galleryFileId, index) =>
+                {
+                    var placement = PlacementAt(galleryPlacements, index);
+                    return new ArticleImage { FileId = galleryFileId, Placement = placement.Placement, InlineAfter = placement.After };
+                }).ToList()
             };
             await _articleRepository.AddArticleAsync(article);
             _logger.LogInformation("Dodano artykuł {ArticleId} (typ {Type}, zdjęcia w galerii: {GalleryCount}).", article.Id, type, gallery.Count);
@@ -97,7 +102,8 @@ namespace SchoolNewspaperBlazorApp.Service
         }
         public async Task UpdateArticleAsync(int id, string title, string text, string author, ArticleType type, int fileId,
             IReadOnlyList<int>? addedFileIds = null, IReadOnlyList<int>? removedImageIds = null,
-            IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null)
+            IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null,
+            IReadOnlyList<ArticleImagePlacement>? addedPlacements = null, IReadOnlyDictionary<int, ArticleImagePlacement>? changedPlacements = null)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.EditArticle);
             if (id <= 0)
@@ -136,7 +142,9 @@ namespace SchoolNewspaperBlazorApp.Service
                 Details = detailsJson,
                 FileId = fileId
             };
-            var removedFileIds = await _articleRepository.UpdateArticleAsync(article, added, removed);
+            var cleanAdded = added.Select((_, index) => PlacementAt(addedPlacements, index)).ToList();
+            var cleanChanged = changedPlacements?.ToDictionary(pair => pair.Key, pair => Sanitize(pair.Value));
+            var removedFileIds = await _articleRepository.UpdateArticleAsync(article, added, removed, cleanAdded, cleanChanged);
             _logger.LogInformation("Zaktualizowano artykuł {ArticleId} (dodane zdjęcia: {Added}, usunięte: {Removed}).", id, added.Count, removed.Count);
 
             // wpisy w bazie są już zaktualizowane, więc błąd przy kasowaniu plików nie może pokazać błędu
@@ -152,6 +160,14 @@ namespace SchoolNewspaperBlazorApp.Service
                 }
             }
         }
+        // brak ułożenia = zdjęcie tylko w galerii; nieprawidłowe wartości też wracają do galerii
+        private static ArticleImagePlacement PlacementAt(IReadOnlyList<ArticleImagePlacement>? placements, int index) =>
+            placements is not null && index < placements.Count ? Sanitize(placements[index]) : new ArticleImagePlacement(InlinePlacement.Gallery, 0);
+
+        private static ArticleImagePlacement Sanitize(ArticleImagePlacement value) =>
+            Enum.IsDefined(value.Placement)
+                ? new ArticleImagePlacement(value.Placement, Math.Max(0, value.After))
+                : new ArticleImagePlacement(InlinePlacement.Gallery, 0);
         // Tytuł i treść są wymagane, autor jest opcjonalny.
         private static void ValidateArticleFields(string? title, string? text)
         {

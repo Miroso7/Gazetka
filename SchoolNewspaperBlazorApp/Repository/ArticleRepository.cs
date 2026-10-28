@@ -83,7 +83,8 @@ namespace SchoolNewspaperBlazorApp.Repository
             return article;
         }
 
-        public async Task<List<int>> UpdateArticleAsync(Article article, IReadOnlyCollection<int> addedFileIds, IReadOnlyCollection<int> removedImageIds)
+        public async Task<List<int>> UpdateArticleAsync(Article article, IReadOnlyCollection<int> addedFileIds, IReadOnlyCollection<int> removedImageIds,
+            IReadOnlyList<ArticleImagePlacement>? addedPlacements = null, IReadOnlyDictionary<int, ArticleImagePlacement>? changedPlacements = null)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -117,9 +118,34 @@ namespace SchoolNewspaperBlazorApp.Repository
                 context.ArticleImages.RemoveRange(toRemove);
             }
 
-            foreach (var fileId in addedFileIds)
+            // ułożenie zdjęć, które zostają w galerii
+            if (changedPlacements is { Count: > 0 })
             {
-                context.ArticleImages.Add(new ArticleImage { ArticleId = article.Id, FileId = fileId });
+                var changedIds = changedPlacements.Keys.ToList();
+                var kept = await context.ArticleImages
+                    .Where(i => i.ArticleId == article.Id && changedIds.Contains(i.Id))
+                    .ToListAsync();
+                foreach (var image in kept)
+                {
+                    var placement = changedPlacements[image.Id];
+                    image.Placement = placement.Placement;
+                    image.InlineAfter = placement.After;
+                }
+            }
+
+            var addedList = addedFileIds.ToList();
+            for (var index = 0; index < addedList.Count; index++)
+            {
+                var placement = addedPlacements is not null && index < addedPlacements.Count
+                    ? addedPlacements[index]
+                    : new ArticleImagePlacement(InlinePlacement.Gallery, 0);
+                context.ArticleImages.Add(new ArticleImage
+                {
+                    ArticleId = article.Id,
+                    FileId = addedList[index],
+                    Placement = placement.Placement,
+                    InlineAfter = placement.After
+                });
             }
 
             await context.SaveChangesAsync();
@@ -136,7 +162,7 @@ namespace SchoolNewspaperBlazorApp.Repository
                 .AsNoTracking()
                 .Where(i => i.ArticleId == articleId)
                 .Join(context.Files, i => i.FileId, f => f.Id,
-                    (i, f) => new ArticleImageDto { Id = i.Id, FileId = i.FileId, FileName = f.FileName })
+                    (i, f) => new ArticleImageDto { Id = i.Id, FileId = i.FileId, FileName = f.FileName, Placement = i.Placement, InlineAfter = i.InlineAfter })
                 .OrderBy(x => x.Id)
                 .ToListAsync();
         }

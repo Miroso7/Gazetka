@@ -30,7 +30,7 @@
 
 @if (current is int shown && shown >= 0 && shown < Images.Count)
 {
-    <div class="lightbox" role="dialog" aria-modal="true" aria-label="Podgląd zdjęcia"
+    <div class="@(Images.Count == 1 ? "lightbox lightbox--single" : "lightbox")" role="dialog" aria-modal="true" aria-label="Podgląd zdjęcia"
          tabindex="-1" @ref="overlay"
          @onkeydown="OnKeyDown"
          @onclick="Close"
@@ -38,8 +38,10 @@
          @ontouchend="OnTouchEnd">
 
         <header class="lightbox__bar">
-            <span class="lightbox__title">@Title</span>
-            <span class="lightbox__counter" aria-live="polite">@(shown + 1) / @Images.Count</span>
+            @if (Images.Count > 1)
+            {
+                <span class="lightbox__counter" aria-live="polite">@(shown + 1) / @Images.Count</span>
+            }
             <button type="button" class="lightbox__btn lightbox__close" @onclick="Close" @onclick:stopPropagation
                     aria-label="Zamknij podgląd" title="Zamknij (Esc)">
                 <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>

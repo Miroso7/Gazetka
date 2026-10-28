@@ -203,8 +203,6 @@
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(1);
     private CancellationTokenSource? refreshCts;
 
-    private static readonly Regex PhotoMarker = new(@"\[foto:\d+\]", RegexOptions.Compiled);
-
     // skróty w sekcji powitalnej
     private static readonly ArticleType[] heroTypes = { ArticleType.News, ArticleType.Events, ArticleType.Announcements };
 
@@ -289,7 +287,7 @@
         var words = SearchText.Words(term);
 
         return source
-            .Where(a => SearchText.MatchesAll(words, $"{a.Title} {a.Author} {PhotoMarker.Replace(a.Text ?? "", " ")}"))
+            .Where(a => SearchText.MatchesAll(words, $"{a.Title} {a.Author} {ArticleBodyMarkers.StripMarkers(a.Text)}"))
             .ToList();
     }
 

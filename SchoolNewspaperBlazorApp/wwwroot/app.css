@@ -6532,3 +6532,218 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* ---------- Wyrównanie zdjęć w treści artykułu ---------- */
+.ap-inline--center {
+    margin-inline: auto;
+}
+
+/* zdjęcie po lewej lub prawej jest obtaczane tekstem */
+.ap-inline--left,
+.ap-inline--right {
+    width: min(45%, 22rem);
+    margin-bottom: 1.1rem;
+}
+
+.ap-inline--left {
+    float: left;
+    margin-right: 1.5rem;
+}
+
+.ap-inline--right {
+    float: right;
+    margin-left: 1.5rem;
+}
+
+    .ap-inline--left .ap-inline__img,
+    .ap-inline--right .ap-inline__img {
+        max-height: 18rem;
+    }
+
+@media (min-width: 1100px) {
+    /* w układzie dwułamowym zdjęcie z boku zostaje w swojej łamie zamiast rozciągać się na obie */
+    .ap-inline--left,
+    .ap-inline--right {
+        column-span: none;
+        max-width: 22rem;
+        margin-inline: 0;
+    }
+
+    .ap-inline--left {
+        margin-right: 1.5rem;
+    }
+
+    .ap-inline--right {
+        margin-left: 1.5rem;
+    }
+}
+
+/* na telefonie zdjęcie z boku zajmuje całą szerokość i nie obcina tekstu */
+@media (max-width: 575.98px) {
+    .ap-inline--left,
+    .ap-inline--right {
+        float: none;
+        width: 100%;
+        margin-inline: 0;
+    }
+}
+
+/* zdjęcie w tekście można kliknąć, żeby je powiększyć */
+.ap-inline__btn {
+    display: block;
+    width: 100%;
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: zoom-in;
+}
+
+    .ap-inline__btn:focus-visible {
+        outline: 3px solid var(--blue);
+        outline-offset: -3px;
+    }
+
+/* powiększenie jednego zdjęcia: bez strzałek i miniatur, zdjęcie wyśrodkowane względem całego ekranu */
+.lightbox--single {
+    grid-template-rows: minmax(0, 1fr);
+}
+
+    .lightbox--single .lightbox__bar {
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 1;
+        padding: max(.9rem, env(safe-area-inset-top)) 1rem .6rem;
+    }
+
+    .lightbox--single .lightbox__stage {
+        grid-row: 1;
+        display: grid;
+        place-items: center;
+    }
+
+    .lightbox--single .lightbox__img {
+        position: static;
+        left: auto;
+        width: auto;
+        height: auto;
+        max-width: calc(100vw - 2rem);
+        max-height: calc(100vh - 2rem);
+        max-height: calc(100dvh - 2rem);
+        object-fit: contain;
+        border-radius: var(--radius-sm);
+    }
+
+/* pasek podglądu bez tytułu artykułu: licznik z lewej, przycisk zamknięcia z prawej */
+.lightbox__counter {
+    margin-right: auto;
+}
+
+.lightbox__close {
+    margin-left: auto;
+}
+
+/* ---------- Formularz artykułu: ułożenie zdjęć w treści ---------- */
+.photo-list {
+    display: grid;
+    gap: .75rem;
+    margin: 0 0 1rem;
+    padding: 0;
+    list-style: none;
+}
+
+.photo-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 9rem minmax(0, 1fr);
+    gap: .9rem;
+    padding: .75rem 3rem .75rem .75rem;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+}
+
+.photo-row__thumb {
+    position: relative;
+    align-self: start;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: var(--blue-soft);
+    border-radius: var(--radius-sm);
+}
+
+    .photo-row__thumb img {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+.photo-row__body {
+    display: grid;
+    align-content: start;
+    gap: .3rem;
+    min-width: 0;
+}
+
+.photo-row__label {
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.photo-row__body .form-select {
+    margin-bottom: .35rem;
+}
+
+.photo-row__remove {
+    position: absolute;
+    top: .6rem;
+    right: .6rem;
+    display: grid;
+    place-items: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    padding: 0;
+    color: var(--white);
+    background: rgba(11, 31, 58, .78);
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background .2s var(--ease), transform .2s var(--ease);
+}
+
+    .photo-row__remove:hover,
+    .photo-row__remove:focus-visible {
+        background: var(--danger);
+        transform: scale(1.08);
+    }
+
+@media (max-width: 575.98px) {
+    .photo-row {
+        grid-template-columns: 1fr;
+        padding-right: .75rem;
+    }
+
+    .photo-row__thumb {
+        max-width: 12rem;
+    }
+
+    .photo-row__remove {
+        top: 1rem;
+        right: 1rem;
+    }
+}
+
+/* ---------- Galeria z jednym zdjęciem: nie rozciąga się na całą szerokość strony ---------- */
+.ap-gallery__grid--one {
+    max-width: 30rem;
+    margin-inline: auto;
+}
+
+    .ap-gallery__grid--one .ap-gallery__cell {
+        aspect-ratio: 4 / 3;
+    }

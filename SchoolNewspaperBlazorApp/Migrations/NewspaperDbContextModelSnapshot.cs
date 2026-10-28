@@ -88,8 +88,14 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.Property<int>("FileId")
                         .HasColumnType("int");
 
+                    b.Property<int>("InlineAfter")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<int>("Placement")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 

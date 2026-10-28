@@ -1,40 +1,86 @@
 ﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
 
 <div class="ap-body">
     @{
         var leadDone = false;
     }
-    @foreach (var part in parts)
+    @foreach (var block in blocks)
     {
-        if (part.Photo is int number)
+        if (block.Photo is int index)
         {
-            // znacznik wskazujący nieistniejące zdjęcie jest po prostu pomijany
-            if (number >= 1 && number <= Photos.Count)
-            {
-                <figure class="ap-inline">
-                    <img src="@Photos[number - 1]" alt="@Title – zdjęcie @number" class="ap-inline__img" loading="lazy" decoding="async" />
-                </figure>
-            }
+            var url = Photos[index].Url;
+            <figure class="@($"ap-inline{PhotoClass(block.Placement)}")">
+                <button type="button" class="ap-inline__btn" @onclick="() => zoomed = url"
+                        aria-label="Powiększ zdjęcie @(index + 1)">
+                    <img src="@url" alt="@Title – zdjęcie @(index + 1)" class="ap-inline__img" loading="lazy" decoding="async" />
+                </button>
+            </figure>
         }
         else
         {
-            <p class="@(leadDone ? null : "ap-lead")">@part.Text</p>
+            <p class="@(leadDone ? null : "ap-lead")">@block.Text</p>
             leadDone = true;
         }
     }
 </div>
 
+@if (zoomed is not null)
+{
+    @* powiększenie jednego zdjęcia z tekstu: bez strzałek i miniatur, zamyka się kliknięciem, Esc lub przyciskiem *@
+    <div class="lightbox lightbox--single" role="dialog" aria-modal="true" aria-label="Podgląd zdjęcia"
+         tabindex="-1" @ref="overlay" @onkeydown="OnKeyDown" @onclick="Close">
+        <header class="lightbox__bar">
+            <button type="button" class="lightbox__btn lightbox__close" @onclick="Close" @onclick:stopPropagation
+                    aria-label="Zamknij podgląd" title="Zamknij (Esc)">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+        </header>
+        <div class="lightbox__stage">
+            <img class="lightbox__img" src="@zoomed" alt="@Title" decoding="async" @onclick:stopPropagation />
+        </div>
+    </div>
+}
+
 @code {
-    // treść artykułu ze znacznikami [foto:N]
+    // treść artykułu (zwykły tekst; akapity oddzielone pustą linią)
     [Parameter] public string? Text { get; set; }
-    // adresy zdjęć galerii w kolejności numeracji (zdjęcie nr 1 = pierwszy element)
-    [Parameter] public IReadOnlyList<string> Photos { get; set; } = Array.Empty<string>();
+    // zdjęcia galerii w kolejności numeracji razem z ułożeniem w treści
+    [Parameter] public IReadOnlyList<ArticleBodyPhoto> Photos { get; set; } = Array.Empty<ArticleBodyPhoto>();
     [Parameter] public string? Title { get; set; }
 
-    private IReadOnlyList<ArticleBodyPart> parts = Array.Empty<ArticleBodyPart>();
+    private IReadOnlyList<ArticleBodyBlock> blocks = Array.Empty<ArticleBodyBlock>();
+    private string? zoomed;
+    private bool focusPending;
+    private ElementReference overlay;
+
+    private static string PhotoClass(InlinePlacement placement) => placement switch
+    {
+        InlinePlacement.Left => " ap-inline--left",
+        InlinePlacement.Right => " ap-inline--right",
+        _ => " ap-inline--center"
+    };
+
+    private void Close() => zoomed = null;
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") Close();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // fokus na podglądzie, żeby Esc działał od razu po otwarciu
+        if (zoomed is null) { focusPending = true; return; }
+        if (!focusPending) return;
+        focusPending = false;
+
+        try { await overlay.FocusAsync(); }
+        catch (Exception) { }
+    }
 
     protected override void OnParametersSet()
     {
-        parts = ArticleBodyMarkers.Split(Text);
+        blocks = ArticleBodyMarkers.Layout(Text, Photos);
     }
 }
