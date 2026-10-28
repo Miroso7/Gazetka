@@ -7141,3 +7141,14 @@ body:has(.preview-overlay) {
     width: 100%;
     accent-color: var(--blue);
 }
+
+/* ---------- Strona artykułu: główne zdjęcie w stałych proporcjach 16:9 ---------- */
+/* tak jak podgląd kadru w formularzu, więc wybrany kadr wygląda na stronie dokładnie tak samo (wcześniej pole zależało od wysokości okna) */
+.ap-figure {
+    max-width: 53rem;
+}
+
+.ap-figure__img {
+    aspect-ratio: 16 / 9;
+    max-height: none;
+}
