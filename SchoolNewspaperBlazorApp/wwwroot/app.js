@@ -2,6 +2,12 @@
 window.articleForm = {
     caret: function(element) {
         return element && typeof element.selectionStart === "number" ? element.selectionStart : -1;
+    },
+    // przewija do komunikatu o błędzie (bez animacji, gdy ktoś ma włączone ograniczenie ruchu)
+    scrollToError: function(element) {
+        if (!element || !element.scrollIntoView) return;
+        var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        element.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
     }
 };
 

@@ -7099,3 +7099,45 @@ body:has(.preview-overlay) {
     .ap-gallery__grid--one .ap-gallery__cell {
         aspect-ratio: 4 / 3;
     }
+
+/* ---------- Kadr głównego zdjęcia w formularzu artykułu ---------- */
+.image-preview--focus {
+    margin-bottom: .75rem;
+}
+
+    .image-preview--focus img {
+        aspect-ratio: 16 / 9;
+        max-height: none;
+    }
+
+.focus-picker {
+    margin-bottom: 1.1rem;
+}
+
+.focus-picker__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-bottom: .5rem;
+}
+
+.focus-picker__row {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr 3rem;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: .35rem;
+    font-size: .9rem;
+    color: var(--muted);
+}
+
+    .focus-picker__row output {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+
+.focus-picker__range {
+    width: 100%;
+    accent-color: var(--blue);
+}

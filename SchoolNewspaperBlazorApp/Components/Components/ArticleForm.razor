@@ -8,6 +8,7 @@
 @inject IArticleService articleService
 @inject IFileService fileService
 @inject IPermissionService permissionService
+@inject IJSRuntime JS
 
 <div class="add-article-form">
     <h1 class="add-article-form__title">@(IsEditing ? (ArticleToEdit!.IsDraft ? "Edytuj wersję roboczą" : "Edytuj artykuł") : "Dodaj artykuł")</h1>
@@ -19,13 +20,38 @@
 
     @if (errorMessage != null)
     {
-        <div class="auth-alert" role="alert">@errorMessage</div>
+        <div class="auth-alert" role="alert" @ref="errorBox">@errorMessage</div>
     }
 
     @if (previewImage != null)
     {
-        <div class="image-preview">
-            <img src="@previewImage" alt="zdjęcie" />
+        <div class="image-preview image-preview--focus">
+            <img src="@previewImage" alt="zdjęcie" style="object-position: @focusX% @focusY%" />
+        </div>
+
+        <div class="focus-picker">
+            <div class="focus-picker__head">
+                <span class="form-label mb-0">Kadr zdjęcia</span>
+                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="ResetFocus"
+                        disabled="@(focusX == 50 && focusY == 50)">
+                    Wyśrodkuj
+                </button>
+            </div>
+            <label class="focus-picker__row" for="focus-x">
+                <span>W poziomie</span>
+                <input id="focus-x" type="range" min="0" max="100" step="1" class="focus-picker__range"
+                       @bind="focusX" @bind:event="oninput" />
+                <output>@focusX%</output>
+            </label>
+            <label class="focus-picker__row" for="focus-y">
+                <span>W pionie</span>
+                <input id="focus-y" type="range" min="0" max="100" step="1" class="focus-picker__range"
+                       @bind="focusY" @bind:event="oninput" />
+                <output>@focusY%</output>
+            </label>
+            <div class="form-text mb-3">
+                Zdjęcie jest przycinane na liście artykułów i na górze strony artykułu. Przesuń suwaki, żeby wybrać, który fragment ma zostać widoczny.
+            </div>
         </div>
     }
 
@@ -282,7 +308,7 @@
                         @if (previewImage != null)
                         {
                             <figure class="ap-figure">
-                                <img src="@previewImage" alt="@title" class="ap-figure__img" />
+                                <img src="@previewImage" alt="@title" class="ap-figure__img" style="object-position: @focusX% @focusY%" />
                             </figure>
                         }
 
@@ -326,8 +352,23 @@
     // dodatkowe pola zależne od typu artykułu (klucz pola -> wartość)
     private Dictionary<string, string> details = new();
     private string? previewImage;
+    // kadr głównego zdjęcia w procentach (50/50 = środek)
+    private int focusX = 50;
+    private int focusY = 50;
     private bool added;
-    private string? errorMessage;
+    // każdy nowy błąd przewija stronę do komunikatu (formularz jest długi, a przycisk zapisu na dole)
+    private string? errorMessage
+    {
+        get => errorText;
+        set
+        {
+            errorText = value;
+            if (value is not null) scrollToError = true;
+        }
+    }
+    private string? errorText;
+    private bool scrollToError;
+    private ElementReference errorBox;
     private int fileInputKey;
 
     private int loadedArticleId;
@@ -536,6 +577,12 @@
     private void SetChecked(string key, object? value) => details[key] = value is true ? "true" : "";
 
     // inny typ ma inne pola, więc wpisane wartości czyścimy
+    private void ResetFocus()
+    {
+        focusX = 50;
+        focusY = 50;
+    }
+
     private void OnTypeChanged()
     {
         details.Clear();
@@ -560,6 +607,8 @@
         expiresTime = TimeText(ArticleToEdit.ExpiresAt);
         details = ArticleFields.Parse(ArticleToEdit.Details);
         existingFileId = ArticleToEdit.FileId;
+        focusX = ArticleToEdit.ImageFocusX;
+        focusY = ArticleToEdit.ImageFocusY;
         previewImage = null;
 
         try
@@ -684,6 +733,8 @@
         added = false;
         errorMessage = null;
         file = e.File;
+        // nowe zdjęcie ma własny kadr, więc zaczynamy od środka
+        ResetFocus();
         try
         {
             previewImage = await fileService.GetPreviewAsync(file);
@@ -864,7 +915,7 @@
                 .Where(p => p.Saved is not null)
                 .ToDictionary(p => p.Saved!.Id, p => new ArticleImagePlacement(p.Placement, p.After, photos.IndexOf(p)));
             await articleService.UpdateArticleAsync(existingId, title, text, author, type, fileId, galleryFileIds, removedImageIds, details,
-                isPinned, publishAt, expiresAt, newPlacements, changedPlacements);
+                isPinned, publishAt, expiresAt, newPlacements, changedPlacements, focusX, focusY);
             file = null;
             if (IsEditing)
             {
@@ -879,7 +930,7 @@
             {
                 id = await fileService.UploadImage(file);
             }
-            await articleService.AddArticleAsync(title, text, author, type, id, galleryFileIds, details, isPinned, publishAt, expiresAt, newPlacements);
+            await articleService.AddArticleAsync(title, text, author, type, id, galleryFileIds, details, isPinned, publishAt, expiresAt, newPlacements, focusX, focusY);
         }
         draftId = null;
         title = text = author = "";
@@ -887,6 +938,7 @@
         publishDate = publishTime = expiresDate = expiresTime = "";
         details = new();
         previewImage = null;
+        ResetFocus();
         showPreview = false;
         photos.Clear();
         galleryInputKey++;
@@ -921,6 +973,13 @@
                 null,
                 TimeSpan.FromSeconds(DraftAutosaveSeconds),
                 TimeSpan.FromSeconds(DraftAutosaveSeconds));
+        }
+
+        if (scrollToError && errorMessage is not null)
+        {
+            scrollToError = false;
+            try { await JS.InvokeVoidAsync("articleForm.scrollToError", errorBox); }
+            catch (Exception) { }
         }
 
         // fokus na podglądzie, żeby Esc działał od razu po otwarciu

@@ -29,7 +29,7 @@ namespace SchoolNewspaperBlazorApp.Service
         }
         public async Task AddArticleAsync(string title, string text, string author, ArticleType type, int fileId, IReadOnlyList<int>? galleryFileIds = null,
             IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null,
-            IReadOnlyList<ArticleImagePlacement>? galleryPlacements = null)
+            IReadOnlyList<ArticleImagePlacement>? galleryPlacements = null, int imageFocusX = 50, int imageFocusY = 50)
         {
             await _permissionService.RequirePermissionAsync(EnumPermissions.AddArticle);
             ValidateArticleFields(title, text);
@@ -50,6 +50,8 @@ namespace SchoolNewspaperBlazorApp.Service
                 Type = type,
                 Details = detailsJson,
                 FileId = fileId,
+                ImageFocusX = ClampFocus(imageFocusX),
+                ImageFocusY = ClampFocus(imageFocusY),
                 // artykuł i jego galeria zapisują się razem, w jednej transakcji
                 Images = gallery.Select((galleryFileId, index) =>
                 {
@@ -110,7 +112,8 @@ namespace SchoolNewspaperBlazorApp.Service
         public async Task UpdateArticleAsync(int id, string title, string text, string author, ArticleType type, int fileId,
             IReadOnlyList<int>? addedFileIds = null, IReadOnlyList<int>? removedImageIds = null,
             IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null,
-            IReadOnlyList<ArticleImagePlacement>? addedPlacements = null, IReadOnlyDictionary<int, ArticleImagePlacement>? changedPlacements = null)
+            IReadOnlyList<ArticleImagePlacement>? addedPlacements = null, IReadOnlyDictionary<int, ArticleImagePlacement>? changedPlacements = null,
+            int imageFocusX = 50, int imageFocusY = 50)
         {
             if (id <= 0)
             {
@@ -156,7 +159,9 @@ namespace SchoolNewspaperBlazorApp.Service
                 IsPinned = isPinned,
                 Type = type,
                 Details = detailsJson,
-                FileId = fileId
+                FileId = fileId,
+                ImageFocusX = ClampFocus(imageFocusX),
+                ImageFocusY = ClampFocus(imageFocusY)
             };
             var cleanAdded = added.Select((_, index) => PlacementAt(addedPlacements, index)).ToList();
             var cleanChanged = changedPlacements?.ToDictionary(pair => pair.Key, pair => Sanitize(pair.Value));
@@ -275,6 +280,9 @@ namespace SchoolNewspaperBlazorApp.Service
                 _logger.LogWarning(ex, "Nie udało się policzyć wyświetlenia artykułu {ArticleId}.", id);
             }
         }
+        // kadr zdjęcia w procentach: poza zakresem 0–100 wraca do granicy
+        private static int ClampFocus(int value) => Math.Clamp(value, 0, 100);
+
         // brak ułożenia = zdjęcie tylko w galerii; nieprawidłowe wartości też wracają do galerii
         private static ArticleImagePlacement PlacementAt(IReadOnlyList<ArticleImagePlacement>? placements, int index) =>
             placements is not null && index < placements.Count ? Sanitize(placements[index]) : new ArticleImagePlacement(InlinePlacement.Gallery, 0);

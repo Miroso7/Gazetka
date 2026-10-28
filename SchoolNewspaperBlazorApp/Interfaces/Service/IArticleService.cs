@@ -12,9 +12,10 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
         // galleryFileIds: Id wgranych wcześniej zdjęć, które trafiają do galerii artykułu
         // galleryPlacements: ułożenie tych zdjęć w treści (w tej samej kolejności co galleryFileIds; null = wszystkie tylko w galerii)
         // isPinned: artykuł zawsze na górze listy; publishAt: „Opublikuj od” (null = od razu); expiresAt: „Wyświetlaj do” (null = bez końca)
+        // imageFocusX/Y: kadr głównego zdjęcia w procentach (0–100, 50 = środek)
         Task AddArticleAsync(string title, string text, string author, ArticleType type, int id, IReadOnlyList<int>? galleryFileIds = null,
             IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null,
-            IReadOnlyList<ArticleImagePlacement>? galleryPlacements = null);
+            IReadOnlyList<ArticleImagePlacement>? galleryPlacements = null, int imageFocusX = 50, int imageFocusY = 50);
         // Wszystkie artykuły (także zaplanowane i wygasłe) – do panelu redakcji.
         Task<List<Article>> GetAllArticlesAsync();
         // Artykuły widoczne dla czytelników: opublikowane i niewygasłe, przypięte na górze; type = null oznacza wszystkie kategorie.
@@ -31,7 +32,8 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
         Task UpdateArticleAsync(int id, string title, string text, string author, ArticleType type, int fileId,
             IReadOnlyList<int>? addedFileIds = null, IReadOnlyList<int>? removedImageIds = null,
             IReadOnlyDictionary<string, string>? details = null, bool isPinned = false, DateTime? publishAt = null, DateTime? expiresAt = null,
-            IReadOnlyList<ArticleImagePlacement>? addedPlacements = null, IReadOnlyDictionary<int, ArticleImagePlacement>? changedPlacements = null);
+            IReadOnlyList<ArticleImagePlacement>? addedPlacements = null, IReadOnlyDictionary<int, ArticleImagePlacement>? changedPlacements = null,
+            int imageFocusX = 50, int imageFocusY = 50);
         // Zapisuje wersję roboczą bez publikacji (id = null tworzy nową) i zwraca jej Id. Może być niepełna; nie dotyka zdjęć.
         // Opublikowanego artykułu nie nadpisuje. Publikacja wersji roboczej = UpdateArticleAsync z pełnym formularzem.
         Task<int> SaveDraftAsync(int? id, string title, string text, string author, ArticleType type,

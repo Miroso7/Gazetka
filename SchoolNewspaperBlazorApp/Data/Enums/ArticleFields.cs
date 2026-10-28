@@ -40,6 +40,11 @@ namespace SchoolNewspaperBlazorApp.Data
         private const int MaxTextLength = 200;
         private const string DateFormat = "yyyy-MM-dd";
         private const string DateTimeFormat = "yyyy-MM-ddTHH:mm";
+        // przeglądarka potrafi podać datę z sekundami (np. „2026-10-30T18:00:00”), więc poza zapisem docelowym przyjmujemy też je
+        private static readonly string[] DateTimeInputFormats =
+        {
+            DateTimeFormat, "yyyy-MM-ddTHH:mm:ss", "yyyy-MM-ddTHH:mm:ss.FFF", "yyyy-MM-dd HH:mm", "yyyy-MM-dd HH:mm:ss"
+        };
 
         public static IReadOnlyList<ArticleField> For(ArticleType type) => type switch
         {
@@ -157,14 +162,20 @@ namespace SchoolNewspaperBlazorApp.Data
                             $"Pole „{field.Label}” może mieć maksymalnie {MaxTextLength} znaków.");
 
                     case ArticleFieldKind.Date when !TryParseDate(value, DateFormat, out _):
-                    case ArticleFieldKind.DateTime when !TryParseDate(value, DateTimeFormat, out _):
-                        throw new InvalidOperationException($"Pole „{field.Label}” ma nieprawidłową datę.");
+                    case ArticleFieldKind.DateTime when !TryParseDateTime(value, out _):
+                        throw new InvalidOperationException($"Pole „{field.Label}” ma nieprawidłową datę. Sprawdź, czy rok ma cztery cyfry (np. {DateTime.Now.Year}).");
 
                     case ArticleFieldKind.Number when !int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var number) || number > 100_000:
                         throw new InvalidOperationException($"Pole „{field.Label}” musi być liczbą całkowitą.");
 
                     case ArticleFieldKind.Select when field.Options is null || !field.Options.Contains(value):
                         throw new InvalidOperationException($"Wybierz poprawną wartość w polu „{field.Label}”.");
+                }
+
+                // data z godziną zapisuje się zawsze w jednym formacie (bez sekund)
+                if (field.Kind == ArticleFieldKind.DateTime && TryParseDateTime(value, out var moment))
+                {
+                    value = moment.ToString(DateTimeFormat, CultureInfo.InvariantCulture);
                 }
 
                 clean[field.Key] = value;
@@ -217,7 +228,7 @@ namespace SchoolNewspaperBlazorApp.Data
             {
                 case ArticleFieldKind.Date when TryParseDate(value, DateFormat, out var date):
                     return date.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
-                case ArticleFieldKind.DateTime when TryParseDate(value, DateTimeFormat, out var dateTime):
+                case ArticleFieldKind.DateTime when TryParseDateTime(value, out var dateTime):
                     return dateTime.ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture);
                 case ArticleFieldKind.Checkbox:
                     return "Tak";
@@ -228,5 +239,8 @@ namespace SchoolNewspaperBlazorApp.Data
 
         private static bool TryParseDate(string value, string format, out DateTime result) =>
             DateTime.TryParseExact(value, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
+
+        private static bool TryParseDateTime(string value, out DateTime result) =>
+            DateTime.TryParseExact(value, DateTimeInputFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
     }
 }

@@ -102,6 +102,8 @@ namespace SchoolNewspaperBlazorApp.Repository
             existing.Type = article.Type;
             existing.Details = article.Details;
             existing.FileId = article.FileId;
+            existing.ImageFocusX = article.ImageFocusX;
+            existing.ImageFocusY = article.ImageFocusY;
             existing.PublishDate = article.PublishDate;
             existing.ExpiresAt = article.ExpiresAt;
             existing.IsPinned = article.IsPinned;

@@ -261,7 +261,7 @@ else
                                         <div class="a-row__thumb">
                                             @if (imageUrls.TryGetValue(a.FileId, out var url))
                                             {
-                                                <img src="@url" alt="@TitleOf(a)" loading="lazy" />
+                                                <img src="@url" alt="@TitleOf(a)" style="object-position: @a.ImageObjectPosition" loading="lazy" />
                                             }
                                             else
                                             {
@@ -354,7 +354,7 @@ else
                                     <div class="a-row__thumb">
                                         @if (imageUrls.TryGetValue(a.FileId, out var url))
                                         {
-                                            <img src="@url" alt="@TitleOf(a)" loading="lazy" />
+                                            <img src="@url" alt="@TitleOf(a)" style="object-position: @a.ImageObjectPosition" loading="lazy" />
                                         }
                                         else
                                         {

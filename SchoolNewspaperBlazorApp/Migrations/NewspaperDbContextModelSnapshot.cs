@@ -46,6 +46,12 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.Property<int>("FileId")
                         .HasColumnType("int");
 
+                    b.Property<int>("ImageFocusX")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ImageFocusY")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 

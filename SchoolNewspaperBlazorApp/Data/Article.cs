@@ -19,6 +19,10 @@ namespace SchoolNewspaperBlazorApp.Data
         // pola zależne od typu artykułu (JSON, patrz ArticleFields)
         public string? Details { get; set; }
         public int FileId { get; set; }
+        // kadr głównego zdjęcia: punkt ostrości w procentach (0–100; 50/50 = środek), używany przy przycinaniu zdjęcia (object-position)
+        public int ImageFocusX { get; set; } = 50;
+        public int ImageFocusY { get; set; } = 50;
+        public string ImageObjectPosition => $"{ImageFocusX}% {ImageFocusY}%";
         public List<ArticleImage> Images { get; set; } = new();
 
         // wersja robocza: zapisana bez publikacji, widzi go tylko redakcja (publikacja = zapis pełnego formularza)

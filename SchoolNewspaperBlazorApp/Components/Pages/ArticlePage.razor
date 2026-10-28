@@ -104,7 +104,7 @@ else
         @if (imageUrl is not null)
         {
             <figure class="ap-figure">
-                <img src="@imageUrl" alt="@article.Title" class="ap-figure__img" fetchpriority="high" decoding="async" />
+                <img src="@imageUrl" alt="@article.Title" class="ap-figure__img" style="object-position: @article.ImageObjectPosition" fetchpriority="high" decoding="async" />
             </figure>
         }
 
